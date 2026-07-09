@@ -1,0 +1,28 @@
+{
+  "_comment": "Fields the findings.csv can't hold. Delete this comment field before use — it's ignored either way.",
+
+  "siteName": "example-site.com",
+  "preparedBy": "Relevate Health",
+  "date": "July 8, 2026",
+  "pagesAudited": "Homepage, Appointment Booking, Password Reset, Insurance FAQ, Contact",
+
+  "sampleNote": null,
+  "_sampleNote_comment": "Set to a string like 'This sample covers N of 8 dimensions...' for demo/partial audits, or null to omit for a full audit.",
+
+  "overallNarrative": "One to two plain-language sentences on where the site stands and what matters most — written for someone who only reads the executive summary.",
+
+  "roadmapArc": "Protect the audience. Improve the experience. Earn their trust.",
+  "_roadmapArc_comment": "Optional narrative tying the phases together. Set to null to omit. Adapt to what's actually in each phase — see Roadmap Phase Naming in SKILL.md.",
+
+  "roadmapPhases": [
+    { "name": "1. Foundation & Compliance", "focus": "One sentence: what this phase delivers and why it's first.", "timeframe": "1-2 weeks" },
+    { "name": "2. Core Experience Improvements", "focus": "One sentence.", "timeframe": "1-2 months" },
+    { "name": "3. Polish & Content Refinement", "focus": "One sentence.", "timeframe": "3+ months" }
+  ],
+
+  "methodology": [
+    "Nielsen Norman Group's 10 Usability Heuristics",
+    "WCAG 2.1 Level AA",
+    "Healthcare UX best practices (health literacy, trust signals, regulatory UX)"
+  ]
+}
