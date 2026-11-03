@@ -60,6 +60,9 @@
 - **Observation**: [Description]
 - **Impact**: [Effect on users]
 - **Recommendation**: [Fix]
+- **Evidence**: [URL(s); selector or element description; axe rule ID if any; screenshot ref if any]
+- **Verification**: Automated-confirmed / Observed live / Inferred — needs human check
+- **Instances**: [Count + pages, if the issue appears in more than one place; otherwise 1]
 - **At a Glance**: [One-sentence client-facing "so what"]
 
 ---
@@ -76,11 +79,16 @@
 - **Observation**: [Description]
 - **Impact**: [Affected users]
 - **Recommendation**: [Fix]
+- **Evidence**: [URL(s); selector or element description; axe rule ID if any; screenshot ref if any]
+- **Verification**: Automated-confirmed / Observed live / Inferred — needs human check
+- **Instances**: [Count + pages, if the issue appears in more than one place; otherwise 1]
 - **At a Glance**: [One-sentence client-facing "so what"]
 
 ---
 
 [REPEAT FOR EACH DIMENSION]
+
+*Before delivery: no finding may still say "Inferred — needs human check" (confirm it live or remove it), and any issue seen on 3+ pages or in a shared component is consolidated into one Site-wide finding — see Finding Documentation in SKILL.md.*
 
 ---
 

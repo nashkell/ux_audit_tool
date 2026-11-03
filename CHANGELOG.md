@@ -2,6 +2,33 @@
 
 All notable changes to this skill are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.5.0] - 2026-11-03
+
+Phase 1 of the v1.5 plan: evidence, verification, and consolidation. Every finding now shows what it's based on and how it was confirmed, and repeated issues are consolidated.
+
+### Added
+- **Three new finding fields** in `SKILL.md` Finding Documentation: `Evidence` (URLs, selector/element, axe rule ID, screenshot ref), `Verification` (`Automated-confirmed` | `Observed live` | `Inferred — needs human check`, each defined), and `Instances` (count + pages).
+- **Verification rule:** findings marked `Inferred — needs human check` may not appear in a client deliverable until a human changes the value.
+- **Consolidation Rule** (under Scope of Impact): the same root issue on 3+ pages or in a shared component becomes one Site-wide finding with every location in Instances; no per-page findings for template-level problems; don't report what wasn't observed — test it live or mark it Inferred.
+- `docx-report-template.js`: reads `Evidence` / `Verification` / `Instances` with the same loose column matching and shows them in small muted text under Reference. Verification values are normalized loosely (`observed`, `automated`, `inferred - …` all resolve); unrecognized values warn.
+- `docx-report-template.js --strict`: exits 1 and writes nothing if any finding is Inferred, naming the IDs. Without the flag it prints a warning with the same IDs.
+
+### Changed
+- `assets/findings.example.csv` gains `Evidence`, `Verification`, `Instances` columns, filled in for both rows.
+- `assets/audit-report-template.md` finding blocks include the new fields, plus a pre-delivery note on Inferred findings and consolidation.
+- README: Finding Documentation Format and Word pipeline sections describe the new fields, the consolidation rule, and `--strict`.
+- SKILL.md footer synced to 1.5.0 (it had lagged at 1.4.0).
+
+### Back-compat
+- A CSV without the new columns still builds, with a single warning that they're missing. When the columns exist but a row is blank, the script warns with the affected IDs. Neither case fails the build.
+
+### Verified
+- Old-format 8-finding / 4-dimension CarePath-equivalent CSV, built with the new script: 87.5% overall (Good); Usability Heuristics 43, Accessibility 38.5, Content & Microcopy 48.5, Mobile/Responsive 45; Top 5 ACC-001, UH-003, MOB-001, UH-001, ACC-002. The extracted document text is identical to the v1.4.1 script's output on the same CSV.
+- New-format CSV: Evidence, Verification, and Instances render under Reference on all 8 findings (checked visually and in the extracted text).
+- `--strict` with one Inferred row (UH-003): exit 1, names UH-003, no file written. `--strict` on the same CSV with UH-003 changed to Observed live: exit 0.
+- `assets/findings.example.csv` builds cleanly.
+- Caveats: the original CarePath CSV isn't in the repo, so the old-format check used a reconstructed 8-row CSV that reproduces the published v1.4 numbers under the v1.4.1 script. LibreOffice/poppler weren't installed on the test machine, so the visual check used the macOS Quick Look render and the text checks used `textutil`, not `soffice` + `pdftotext`. Re-run with the real CarePath CSV and `soffice` when they're available.
+
 ## [1.4.1] - 2026-07-08
 
 ### Changed

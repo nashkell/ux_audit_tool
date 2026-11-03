@@ -145,8 +145,25 @@ Observation: [What was found]
 Impact: [User/business effect]
 Recommendation: [Specific fix]
 Reference: [Standard violated]
+Evidence: [URL(s); CSS selector or element description; axe rule ID if any; screenshot ref if any]
+Verification: [Automated-confirmed | Observed live | Inferred — needs human check]
+Instances: [Count + list of pages, when the same issue appears in more than one place]
 At a Glance: [One-sentence client-facing takeaway]
 ```
+
+**Evidence** is what the finding is based on — specific enough that someone else can go and see it. Name the URL(s), the selector or a plain description of the element, the axe rule ID if automation flagged it, and a screenshot reference if one exists.
+
+**Verification** records how the finding was confirmed. Use exactly one of:
+
+| Value | Meaning |
+|-------|---------|
+| Automated-confirmed | A tool (e.g. axe-core) flagged it and the flagged element was checked against the actual page. |
+| Observed live | Seen directly by interacting with the live page (keyboard, click-through, resize, form submit). |
+| Inferred — needs human check | Reasoned from indirect data (a static capture, DOM, or screenshot) and not yet confirmed on the live site. |
+
+**Findings marked "Inferred — needs human check" may not appear in a client deliverable until a human changes the value** — by confirming it live (→ Observed live) or deleting the finding. The Word builder warns on any Inferred finding, and `--strict` makes it refuse to build.
+
+**Instances** lists every place a consolidated finding occurs (see the Consolidation rule below). For a single-location finding, `1` is enough.
 
 **Writing the "At a Glance" line.** This is the sentence a busy stakeholder reads when they don't have time for the full finding. It is not a compressed restatement of the Observation — it answers "so what."
 
@@ -183,6 +200,14 @@ Severity alone doesn't capture how much of the site a finding touches — a Crit
 | Element-level | Confined to a single component or element on one page (one button, one field, one image) |
 
 Scope is assigned independently of Severity — don't infer one from the other. A Cosmetic, site-wide inconsistency and a Critical, element-level blocker are both real findings; the scoring model (below) is what weighs them against each other.
+
+### Consolidation Rule
+
+AI-assisted reviews tend to report the same issue over and over. Before scoring:
+
+- **The same root issue on 3 or more pages, or in a shared component** (global nav, footer, a reused form or card), becomes **one** finding with Scope = Site-wide. List every location in Instances.
+- **Don't file one finding per page for a template-level problem.** Five pages with the same unlabelled search field is one finding, not five.
+- **Don't report a problem you didn't observe.** If a behavior can't be checked from what was captured (e.g. a hover state, an error message, or a back-button flow from a static screenshot), either test it live or mark it `Inferred — needs human check`.
 
 ---
 
@@ -273,8 +298,13 @@ Workflow:
 
 CSV column names are matched case- and punctuation-insensitively (`At a Glance`, `at_a_glance`, etc. all resolve), so minor header variations across exports are fine. See `assets/findings.example.csv` for the expected format.
 
+The `Evidence`, `Verification`, and `Instances` columns are shown in small, muted text under each finding's Reference. A CSV without them (pre-v1.5) still builds, with a warning. Any finding with Verification = Inferred triggers a warning listing its ID; add `--strict` to make the build exit non-zero instead — use it for the final client build:
+```bash
+node scripts/docx-report-template.js findings.csv audit-meta.json output.docx --strict
+```
+
 The script's brand palette (navy/purple/lime/teal, Inter typeface) is approximated from the HTML deck system and marked as placeholder in the file — confirm hex values against the actual brand guide before client delivery. Severity badges intentionally use a separate red/orange/yellow/gray convention rather than brand accent colors, so severity reads independently of brand styling.
 
 ---
 
-*Skill Version: 1.4.0 — see `CHANGELOG.md` for version history.*
+*Skill Version: 1.5.0 — see `CHANGELOG.md` for version history.*
