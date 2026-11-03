@@ -9,11 +9,11 @@ Systematic UX audits evaluating websites against usability and accessibility sta
 
 ## Known Limitations
 
-**Screenshot capture for output/findings is disabled by default (as of July 2026).** This does not affect browser-based review — the site should still be reviewed live via Cowork (Claude in Chrome) or headless browser (Puppeteer in Claude Code) as normal; that's how the audit gets done. What's disabled is specifically the step that saves desktop/mobile screenshot *images* into the deliverables, which was found to be unreliable in production use and is being revisited.
-- `capture-site.js` still navigates and analyzes every page normally — DOM extraction, axe-core accessibility checks, text extraction, keyboard-nav analysis all run. Only the image-saving step is skipped.
-- Cowork should still `navigate` and inspect pages live; just skip the `computer` screenshot action for output purposes.
-- Annotated screenshots for the deliverable are, for now, the auditor's responsibility to capture and annotate manually after the audit — not something this skill generates automatically.
-- If you need to test a fix, `capture-site.js` accepts `--with-screenshots` to re-enable image capture, but treat any resulting images as unverified until this note is removed.
+**Deliverable screenshots are captured and annotated by the auditor, by hand.** The skill doesn't put screenshots into deliverables. This doesn't change the review itself: the site is still reviewed live through Cowork (Claude in Chrome) or headless Puppeteer in Claude Code.
+- `capture-site.js` saves no images by default. It still loads every page and records DOM structure, the form-label check, axe-core results, page text, a keyboard focus test, and a mobile-load check.
+- `--with-screenshots` saves `desktop.png` and `mobile.png` (real device emulation, lazy content loaded, consent banners dismissed with `--dismiss`). They're reliable for the auditor's own reference, and each one's viewport, user agent and timestamp are recorded in `analysis.json`. They are not annotated deliverable screenshots.
+- Cowork should still `navigate` and inspect pages live, without saving `computer` screenshots as output.
+- **Automated checks don't settle everything.** axe `incomplete` items, alt-text *quality* (an image whose alt is present but wrong), and whether focus order makes sense all need a human look. Treat those as `Inferred — needs human check` until confirmed.
 
 ## Environment Setup
 
@@ -23,17 +23,27 @@ Systematic UX audits evaluating websites against usability and accessibility sta
 # 1. Create workspace
 mkdir -p audit-output
 
-# 2. Install Puppeteer
-npm install puppeteer
+# 2. Install pinned Puppeteer + axe-core (once per skill install)
+cd /path/to/skill/scripts && npm install && cd -
 
-# 3. Run capture script (screenshots off by default — see Known Limitations)
+# 3. Run capture script (no screenshots unless --with-screenshots)
 node /path/to/skill/scripts/capture-site.js https://target-site.com \
   --pages pages.json \
-  --output ./audit-output
+  --output ./audit-output \
+  --dismiss "#onetrust-accept-btn-handler"   # optional consent-banner selector(s)
 
-# 4. Analyze captured data (analysis.json per page: DOM structure, a11y
-#    violations, text content, keyboard-nav data)
+# 4. Analyze captured data — see "Reading analysis.json" below
 ```
+
+**Reading `analysis.json`** (one per page; `capture-summary.json` lists every page and any failed step):
+- `accessibility.violations[]`: axe rule, impact, WCAG tags, and up to 10 node selectors. Run with `wcag2a, wcag2aa, wcag21a, wcag21aa, wcag22aa, best-practice`. Use the rule ID and selectors in Evidence; findings confirmed this way are `Automated-confirmed` once you've checked the flagged element.
+- `accessibility.incomplete[]`: items axe couldn't decide. **These are a manual-review list, not findings.**
+- `pageData.unlabelledFields[]` / `formFields[].labelSource`: label check (label[for], wrapping label, aria-labelledby, aria-label, title).
+- `pageData.imagesMissingAlt[]` / `imagesEmptyAlt[]`: missing alt vs `alt=""` (valid for decorative images).
+- `keyboardFocus.withoutFocusIndicator[]`: Tab stops whose outline/box-shadow/border/background didn't change on focus. `keyboardFocus.focusLost[]`: Tab stops that dropped focus to the page (e.g. `onfocus="blur()"`).
+- `mobile.checks`: viewport meta and horizontal overflow from a real mobile-device load.
+- `errors[]`: steps that failed on this page. The other steps still ran, so treat missing sections as "not tested," not "passed."
+
 
 Create `pages.json` for multi-page audits:
 ```json
@@ -54,7 +64,7 @@ Use Claude in Chrome tools directly to review the live site:
 4. `read_page` - Get accessibility tree
 5. `get_page_text` - Get rendered content for readability/microcopy review
 
-This is still a full live-browser review — only the step that saves screenshot images into the output is skipped for now (see Known Limitations above). Annotated screenshots for the deliverable are captured and added manually by the auditor.
+This is still a full live-browser review; screenshots just aren't saved as output (see Known Limitations above). Annotated screenshots for the deliverable are captured and added manually by the auditor.
 
 ### Chat (Manual Input)
 
@@ -278,7 +288,7 @@ Output files:
 1. `audit-report.md` - Complete findings
 2. `executive-summary.md` - Stakeholder summary
 3. `findings.csv` - Tabular data for tracking
-4. `screenshots/` - Annotated evidence, added manually by the auditor (not auto-generated — see Known Limitations)
+4. `screenshots/` - Annotated evidence, added manually by the auditor (see Known Limitations)
 
 Copy deliverables to output directory for user access.
 
@@ -307,4 +317,4 @@ The script's brand palette (navy/purple/lime/teal, Inter typeface) is approximat
 
 ---
 
-*Skill Version: 1.5.0 — see `CHANGELOG.md` for version history.*
+*Skill Version: 1.5.1 — see `CHANGELOG.md` for version history.*

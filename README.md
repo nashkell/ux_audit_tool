@@ -48,7 +48,14 @@ The environment choice only changes *how* pages get reviewed — all three feed 
 The three modes run the same 8-dimension evaluation — what differs is how the site data gets gathered and how automated that gathering is.
 
 **Claude Code (headless, via Puppeteer)**
-Fully scripted. `scripts/capture-site.js` drives a headless Chromium instance against a list of pages defined in `pages.json`, and for each one extracts DOM structure, runs axe-core accessibility checks, pulls text content, and tests keyboard-nav behavior — writing an `analysis.json` per page. This is the most automatable route: good for multi-page audits where you want consistent, scriptable data collection across a whole site without reviewing each page by hand. Screenshot capture is off by default here (see Known Limitations below), so visual-design findings still need a human look at the live site or manually-supplied images.
+Fully scripted. `scripts/capture-site.js` drives headless Chrome against a list of pages defined in `pages.json`. Desktop and mobile are separate loads; mobile uses real device emulation (`--mobile-device`, default iPhone 13). For each page it records:
+- DOM structure and a form-label check (label[for], wrapping label, aria-labelledby, aria-label, title)
+- axe-core violations with node selectors, plus `incomplete` items for manual review. axe is injected from the local npm package, so a site's Content-Security-Policy can't block it.
+- page text
+- a keyboard focus test that presses Tab and compares each element's focused and unfocused styles
+- mobile viewport/overflow checks
+
+All of this is written to an `analysis.json` per page. Each step is wrapped: one failure is recorded and the rest still run. Install once with `cd scripts && npm install` (Puppeteer and axe-core versions are pinned in `scripts/package.json`). Screenshots are off by default (see Known Limitation below), so visual-design findings still need a human look at the live site or manually supplied images.
 
 **Cowork (live, via Claude in Chrome)**
 Interactive rather than scripted. Navigate, resize the viewport (1440px desktop / 375px mobile), and use `read_page` for the accessibility tree plus `get_page_text` for rendered content — against the actual live page each time, not a captured snapshot. This is the better fit when a site has JS-heavy interactions, login flows, or dynamic states that are awkward to script in advance. Same screenshot caveat applies — live review still happens, but images aren't auto-saved into the output.
@@ -176,7 +183,7 @@ Dimensions render in a canonical order matching the 8 dimensions above, regardle
 
 ## Known Limitation
 
-**Automated screenshot capture for the output deliverable is currently disabled by default.** This does not affect the audit itself — live browser review via Cowork or headless Puppeteer still happens as normal. What's off is the step that saves screenshot *images* into the report; that was found to be unreliable in production use (July 2026) and is under review. Annotated screenshots for the deliverable are, for now, captured and added by the auditor manually. See `SKILL.md` -> Known Limitations for details and the `--with-screenshots` opt-back-in flag.
+**Deliverable screenshots are captured and annotated by the auditor, by hand.** `capture-site.js` saves no images by default. The v1.5.1 capture fixes make `--with-screenshots` reliable for the auditor's own reference: real mobile emulation on a separate load, lazy content scrolled into view, consent banners dismissed with `--dismiss`, and viewport/user agent/timestamp recorded per image. The images still aren't annotated deliverables. Automated checks also don't settle alt-text quality, axe `incomplete` items, or whether focus order makes sense; those need a human. See `SKILL.md` -> Known Limitations.
 
 ## Repo structure
 
@@ -191,6 +198,7 @@ assets/
   findings.example.csv              Example input for the docx builder
   audit-meta.example.json           Example metadata input for the docx builder
 scripts/
+  package.json                      Pinned Puppeteer / axe-core / docx versions (cd scripts && npm install)
   capture-site.js                   Puppeteer capture + analysis script (Claude Code)
   docx-report-template.js           Branded Word (.docx) builder -- reads findings.csv + audit-meta.json directly
 CHANGELOG.md                        Version history
@@ -206,5 +214,4 @@ This is a living framework — evaluation criteria, severity definitions, and te
 
 ## Roadmap
 
-- Fix and re-enable automated screenshot capture
 - Extract SEO/GEO assessment into a companion skill for audits that combine both lenses (deferred — not part of this skill's scope)
