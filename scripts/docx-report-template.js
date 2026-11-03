@@ -14,14 +14,20 @@
  *
  * USAGE
  *   npm install docx   (if not already installed)
- *   node docx-report-template.js [findings.csv] [audit-meta.json] [output.docx]
+ *   node docx-report-template.js [findings.csv] [audit-meta.json] [output.docx] [--strict]
+ *
+ *   --strict   Exit non-zero (and write nothing) if any finding has
+ *              Verification = "Inferred — needs human check". Without the
+ *              flag those findings only produce a warning listing their IDs.
  *
  * Defaults: ./findings.csv, ./audit-meta.json, /mnt/user-data/outputs/UX-Audit-Report.docx
  *
  * findings.csv is expected to have the columns produced by this skill's
  * Finding Documentation format: ID, Dimension, Severity, Scope,
  * Standard/Heuristic (or Reference/WCAG), Location, Observation, Impact,
- * Recommendation, At a Glance, Priority Score. Column names are matched
+ * Recommendation, At a Glance, Priority Score, plus (v1.5+) Evidence,
+ * Verification, Instances. The v1.5 columns are optional: an older CSV
+ * without them still builds, with a warning. Column names are matched
  * case- and punctuation-insensitively, so minor header variations are fine.
  * See assets/findings.example.csv for a reference file.
  *
@@ -48,7 +54,9 @@ const {
   Header, Footer, PageNumber, VerticalAlign
 } = require("docx");
 
-const [, , csvArg, metaArg, outArg] = process.argv;
+const cliArgs = process.argv.slice(2);
+const STRICT = cliArgs.includes("--strict");
+const [csvArg, metaArg, outArg] = cliArgs.filter(a => !a.startsWith("--"));
 const CSV_PATH = csvArg || "./findings.csv";
 const META_PATH = metaArg || "./audit-meta.json";
 const OUTPUT_PATH = outArg || "/mnt/user-data/outputs/UX-Audit-Report.docx";
@@ -104,6 +112,27 @@ function pick(rowObj, candidates) {
 }
 
 // ============================================================================
+// Verification values (see SKILL.md Finding Documentation)
+// ============================================================================
+
+const VERIFICATION = {
+  AUTOMATED: "Automated-confirmed",
+  OBSERVED: "Observed live",
+  INFERRED: "Inferred \u2014 needs human check"
+};
+
+// Loose match so "automated", "Observed-live", "inferred - needs human check"
+// etc. all resolve. Unrecognized non-empty values are kept as-is (and warned).
+function normVerification(v) {
+  const k = normKey(v);
+  if (!k) return "";
+  if (k.startsWith("automated")) return VERIFICATION.AUTOMATED;
+  if (k.startsWith("observed")) return VERIFICATION.OBSERVED;
+  if (k.startsWith("inferred")) return VERIFICATION.INFERRED;
+  return v;
+}
+
+// ============================================================================
 // Severity x Scope deduction table (see SKILL.md Scoring)
 // ============================================================================
 
@@ -130,9 +159,30 @@ function fmtNum(n) {
 // Load and normalize findings.csv
 // ============================================================================
 
+const EVIDENCE_KEYS = ["Evidence"];
+const VERIFICATION_KEYS = ["Verification", "Verified", "Verification Status"];
+const INSTANCES_KEYS = ["Instances", "Instance List", "Occurrences"];
+
+function hasColumn(rows, candidates) {
+  if (!rows.length) return false;
+  const keys = Object.keys(rows[0]).map(normKey);
+  return candidates.some(c => keys.includes(normKey(c)));
+}
+
+const EVIDENCE_COLUMNS_PRESENT = {};
+
 function loadFindings(csvPath) {
   const raw = fs.readFileSync(csvPath, "utf-8");
   const rows = parseCSV(raw);
+
+  // v1.5 evidence columns are optional for back-compat: warn, never fail.
+  [["Evidence", EVIDENCE_KEYS], ["Verification", VERIFICATION_KEYS], ["Instances", INSTANCES_KEYS]]
+    .forEach(([name, keys]) => { EVIDENCE_COLUMNS_PRESENT[name] = hasColumn(rows, keys); });
+  const missingCols = Object.keys(EVIDENCE_COLUMNS_PRESENT).filter(n => !EVIDENCE_COLUMNS_PRESENT[n]);
+  if (missingCols.length) {
+    console.warn(`Warning: ${csvPath} has no ${missingCols.join("/")} column(s) (pre-v1.5 format). The doc will build, but findings won't show what they're based on or how they were confirmed.`);
+  }
+
   return rows.map(r => {
     const severity = pick(r, ["Severity"]);
     const scope = pick(r, ["Scope"]);
@@ -147,7 +197,10 @@ function loadFindings(csvPath) {
       impact: pick(r, ["Impact"]),
       recommendation: pick(r, ["Recommendation"]),
       glance: pick(r, ["At a Glance", "At-a-Glance", "AtAGlance"]),
-      priorityScore: parseFloat(pick(r, ["Priority Score", "Priority"])) || 0
+      priorityScore: parseFloat(pick(r, ["Priority Score", "Priority"])) || 0,
+      evidence: pick(r, EVIDENCE_KEYS),
+      verification: normVerification(pick(r, VERIFICATION_KEYS)),
+      instances: pick(r, INSTANCES_KEYS)
     };
   });
 }
@@ -319,6 +372,17 @@ function labelValue(label, value) {
   });
 }
 
+// Small, muted line for supporting detail (Evidence, Verification, Instances).
+function mutedLabelValue(label, value) {
+  return new Paragraph({
+    spacing: { after: 60, line: 252 },
+    children: [
+      new TextRun({ text: `${label}: `, font: FONT, color: MUTED, bold: true, size: 17 }),
+      new TextRun({ text: value, font: FONT, color: MUTED, size: 17 })
+    ]
+  });
+}
+
 function divider() {
   return new Paragraph({
     spacing: { before: 120, after: 240 },
@@ -383,6 +447,10 @@ function findingBlock(f) {
   return [
     findingHeading(f.id, f.severity, f.scope),
     labelValue("Reference", f.reference),
+    // v1.5 evidence fields — omitted when empty so pre-v1.5 CSVs render as before.
+    ...(f.evidence ? [mutedLabelValue("Evidence", f.evidence)] : []),
+    ...(f.verification ? [mutedLabelValue("Verification", f.verification)] : []),
+    ...(f.instances ? [mutedLabelValue("Instances", f.instances)] : []),
     labelValue("Location", f.location),
     labelValue("Observation", f.observation),
     labelValue("Impact", f.impact),
@@ -547,6 +615,31 @@ function build(data) {
 }
 
 const findings = loadFindings(CSV_PATH);
+
+// Verification gate (see SKILL.md): Inferred findings may not appear in a
+// client deliverable until a human changes the value.
+const KNOWN_VERIFICATION = Object.values(VERIFICATION);
+// Per-row blanks are only reported when the column exists; a missing column
+// was already reported once by loadFindings.
+[["Evidence", "evidence"], ["Verification", "verification"]].forEach(([label, field]) => {
+  if (!EVIDENCE_COLUMNS_PRESENT[label]) return;
+  const blank = findings.filter(f => !f[field]).map(f => f.id);
+  if (blank.length) console.warn(`Warning: ${label} is empty for ${blank.join(", ")}.`);
+});
+const unknownVerification = findings.filter(f => f.verification && !KNOWN_VERIFICATION.includes(f.verification));
+if (unknownVerification.length) {
+  console.warn(`Warning: unrecognized Verification value on ${unknownVerification.map(f => `${f.id} ("${f.verification}")`).join(", ")}. Use ${KNOWN_VERIFICATION.join(" | ")}.`);
+}
+const inferred = findings.filter(f => f.verification === VERIFICATION.INFERRED).map(f => f.id);
+if (inferred.length) {
+  const msg = `${inferred.length} finding(s) marked "${VERIFICATION.INFERRED}": ${inferred.join(", ")}. These may not appear in a client deliverable until a human verifies them and changes the value.`;
+  if (STRICT) {
+    console.error(`Error (--strict): ${msg}`);
+    process.exit(1);
+  }
+  console.warn(`Warning: ${msg}`);
+}
+
 const meta = loadMeta(META_PATH);
 const auditData = buildAuditData(findings, meta);
 

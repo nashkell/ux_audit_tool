@@ -84,6 +84,9 @@ Observation: [What was found]
 Impact: [User/business effect]
 Recommendation: [Specific fix]
 Reference: [Standard violated]
+Evidence: [URL(s); CSS selector or element description; axe rule ID if any; screenshot ref if any]
+Verification: [Automated-confirmed | Observed live | Inferred — needs human check]
+Instances: [Count + list of pages, when the same issue appears in more than one place]
 At a Glance: [One-sentence client-facing takeaway]
 ```
 
@@ -100,6 +103,8 @@ At a Glance: [One-sentence client-facing takeaway]
 | Element-level | Confined to a single component on one page |
 
 Scope is assigned independently of Severity — a Critical, Site-wide issue and a Critical, Element-level issue are both genuinely Critical, but they're not the same problem, and the scoring model (below) treats them differently.
+
+**Evidence / Verification / Instances** (v1.5) — what the finding is based on and how it was confirmed. AI heuristic reviews produce false positives and repeat themselves, so every finding now names where to see it (URL, selector, axe rule) and is marked `Automated-confirmed`, `Observed live`, or `Inferred — needs human check`. Inferred findings can't go into a client deliverable until a human confirms them. **Consolidation rule:** the same root issue on 3 or more pages, or in a shared component, is filed once as a Site-wide finding with every location listed under Instances — not once per page.
 
 **Observation / Impact / Recommendation** — the factual core: what was found, who it affects and how, and the specific fix. These stay descriptive and technical.
 
@@ -140,13 +145,19 @@ Scope can *inform* the `userReach` rating (Site-wide findings usually reach more
 `scripts/docx-report-template.js` builds a fully-formatted, branded Word document directly from `findings.csv` — no manual re-entry of finding data.
 
 **Two inputs, different jobs.**
-`findings.csv` carries everything about the findings themselves (ID, Dimension, Severity, Scope, Reference, Location, Observation, Impact, Recommendation, At a Glance, Priority Score) — the same file already produced elsewhere in the skill. `audit-meta.json` carries the handful of things a CSV structurally can't hold: site name, prepared-by, date, pages audited, the executive summary narrative, and the roadmap phases. Copy `assets/audit-meta.example.json` and fill in the ~7 fields; everything else is derived.
+`findings.csv` carries everything about the findings themselves (ID, Dimension, Severity, Scope, Reference, Location, Observation, Impact, Recommendation, At a Glance, Priority Score, and — from v1.5 — Evidence, Verification, Instances) — the same file already produced elsewhere in the skill. `audit-meta.json` carries the handful of things a CSV structurally can't hold: site name, prepared-by, date, pages audited, the executive summary narrative, and the roadmap phases. Copy `assets/audit-meta.example.json` and fill in the ~7 fields; everything else is derived.
 
 ```bash
 node scripts/docx-report-template.js findings.csv audit-meta.json output.docx
 ```
 
 **Parsing.** A small hand-written CSV parser handles quoted fields with embedded commas (Location and Observation routinely have commas in them). Column matching is case- and punctuation-insensitive — "At a Glance," "at_a_glance," and "AtAGlance" all resolve to the same field — so minor header drift between exports won't break it.
+
+**Evidence and the verification gate.** Evidence, Verification, and Instances render in small muted text under each finding's Reference. They're optional for back-compat: a pre-v1.5 CSV builds exactly as before, with a warning that the columns are missing. Any finding marked `Inferred — needs human check` prints a warning naming its ID; pass `--strict` to make the script exit non-zero and write nothing instead (use it for the final client build):
+
+```bash
+node scripts/docx-report-template.js findings.csv audit-meta.json output.docx --strict
+```
 
 **What's derived automatically, rather than hand-calculated:**
 - **Dimension scores** — findings grouped by Dimension, Severity x Scope deduction looked up and summed per group, subtracted from 50.
