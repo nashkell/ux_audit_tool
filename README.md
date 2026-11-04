@@ -1,6 +1,6 @@
 # UX Audit Skill
 
-A Claude Agent Skill for running systematic, structured UX audits of websites — evaluated against WCAG 2.1 AA, Nielsen Norman Group's 10 usability heuristics, and healthcare-specific UX considerations.
+A Claude Agent Skill for running systematic, structured UX audits of websites — evaluated against WCAG 2.2 AA (with the WCAG 2.1 AA legal baseline labeled), Nielsen Norman Group's 10 usability heuristics, and healthcare-specific UX considerations.
 
 Built and maintained by the AI Center of Excellence. Originally developed for client-facing audit work in the healthcare/medical device space, generalized for broader team use.
 
@@ -68,7 +68,7 @@ The practical difference: Code gives breadth (many pages, consistent structured 
 ## The 8 Audit Dimensions
 
 1. **Usability Heuristics** — Nielsen Norman Group's 10 heuristics (visibility of system status, error recovery, consistency & standards, etc.)
-2. **Accessibility** — WCAG 2.1 Level AA: perceivable, operable, understandable, robust
+2. **Accessibility** — WCAG 2.2 Level AA: perceivable, operable, understandable, robust. Each finding is labeled `WCAG 2.1 AA` (legal baseline), `WCAG 2.2 AA (new)`, or `Best practice`. Target size: below 24×24 CSS px fails 2.5.8; 24–43px is a best-practice finding (44px recommended).
 3. **Visual Design** — hierarchy, typography, spacing, consistency
 4. **Information Architecture** — navigation depth, findability, search
 5. **Content & Microcopy** — reading level, CTA clarity, error message quality
@@ -90,7 +90,8 @@ Location: [Page/Element]
 Observation: [What was found]
 Impact: [User/business effect]
 Recommendation: [Specific fix]
-Reference: [Standard violated]
+Reference: [Standard violated — include the WCAG criterion number, e.g. "WCAG 2.4.7 Focus Visible"]
+Standard: [WCAG 2.1 AA | WCAG 2.2 AA (new) | Best practice] (accessibility findings)
 Evidence: [URL(s); CSS selector or element description; axe rule ID if any; screenshot ref if any]
 Verification: [Automated-confirmed | Observed live | Inferred — needs human check]
 Instances: [Count + list of pages, when the same issue appears in more than one place]
@@ -110,6 +111,8 @@ At a Glance: [One-sentence client-facing takeaway]
 | Element-level | Confined to a single component on one page |
 
 Scope is assigned independently of Severity — a Critical, Site-wide issue and a Critical, Element-level issue are both genuinely Critical, but they're not the same problem, and the scoring model (below) treats them differently.
+
+**Standard** (v1.5.2) — which bar an accessibility finding fails. Audits evaluate against WCAG 2.2 AA, but most current regulations (e.g. the HHS Section 504 rule) reference WCAG 2.1 AA, so each finding says whether it's inside that legal baseline (`WCAG 2.1 AA`), fails only a criterion new in 2.2 (`WCAG 2.2 AA (new)`), or fails no A/AA criterion (`Best practice`). Which baseline applies to a client is recorded in `audit-meta.json` as `complianceBaseline` — see `references/regulatory-context.md`.
 
 **Evidence / Verification / Instances** (v1.5) — what the finding is based on and how it was confirmed. AI heuristic reviews produce false positives and repeat themselves, so every finding now names where to see it (URL, selector, axe rule) and is marked `Automated-confirmed`, `Observed live`, or `Inferred — needs human check`. Inferred findings can't go into a client deliverable until a human confirms them. **Consolidation rule:** the same root issue on 3 or more pages, or in a shared component, is filed once as a Site-wide finding with every location listed under Instances — not once per page.
 
@@ -166,6 +169,19 @@ node scripts/docx-report-template.js findings.csv audit-meta.json output.docx
 node scripts/docx-report-template.js findings.csv audit-meta.json output.docx --strict
 ```
 
+**WCAG 2.2 AA conformance table (Appendix D).** All 55 WCAG 2.2 A/AA criteria, each with a result:
+- **Fail** comes from the findings: the criterion number in Reference, or an optional `WCAG SC` column. `Best practice` findings never create a Fail.
+- **Pass / N/A / Needs manual check** come only from the auditor, in `audit-meta.json` `criteriaResults`.
+- Everything else is **Not tested**.
+
+The script never writes Pass on its own, since no finding isn't proof a criterion was checked. It warns when:
+- an auditor Pass conflicts with a finding (Fail wins)
+- a Fail has no finding behind it
+- a Standard label doesn't match the criteria cited
+- a criterion is unknown or obsolete (4.1.1)
+
+A blank Standard is filled in from the cited criteria. A CSV without a Standard column still builds, with a warning.
+
 **What's derived automatically, rather than hand-calculated:**
 - **Dimension scores** — findings grouped by Dimension, Severity x Scope deduction looked up and summed per group, subtracted from 50.
 - **Overall Site Health %** — sum of dimension scores over their combined ceiling, converted to a percentage and banded into a rating (Excellent/Good/Needs Improvement/Poor/Critical).
@@ -191,7 +207,8 @@ Dimensions render in a canonical order matching the 8 dimensions above, regardle
 SKILL.md                            Core instructions (entry point)
 references/
   heuristics-checklist.md           NN/g 10 heuristics, detailed criteria
-  accessibility-checklist.md        WCAG 2.1 AA checklist
+  accessibility-checklist.md        WCAG 2.2 AA checklist: every A/AA criterion tagged, target-size rules, manual-verification list
+  regulatory-context.md             Which baseline applies to a client (HHS Section 504 etc.); complianceBaseline
 assets/
   audit-report-template.md          Full report template
   executive-summary-template.md     One-page stakeholder summary template
@@ -200,6 +217,7 @@ assets/
 scripts/
   package.json                      Pinned Puppeteer / axe-core / docx versions (cd scripts && npm install)
   capture-site.js                   Puppeteer capture + analysis script (Claude Code)
+  wcag22-criteria.js                WCAG 2.2 A/AA criteria list used by the Word builder's conformance table
   docx-report-template.js           Branded Word (.docx) builder -- reads findings.csv + audit-meta.json directly
 CHANGELOG.md                        Version history
 ```

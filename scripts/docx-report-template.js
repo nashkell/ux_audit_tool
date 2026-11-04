@@ -26,8 +26,9 @@
  * Finding Documentation format: ID, Dimension, Severity, Scope,
  * Standard/Heuristic (or Reference/WCAG), Location, Observation, Impact,
  * Recommendation, At a Glance, Priority Score, plus (v1.5+) Evidence,
- * Verification, Instances. The v1.5 columns are optional: an older CSV
- * without them still builds, with a warning. Column names are matched
+ * Verification, Instances, Standard (WCAG 2.1 AA | WCAG 2.2 AA (new) |
+ * Best practice) and an optional WCAG SC override. The v1.5 columns are
+ * optional: an older CSV without them still builds, with a warning. Column names are matched
  * case- and punctuation-insensitively, so minor header variations are fine.
  * See assets/findings.example.csv for a reference file.
  *
@@ -41,12 +42,19 @@
  * from the CSV using the Severity x Scope deduction table — no need to
  * hand-calculate them.
  *
+ * Appendix D (WCAG 2.2 AA conformance) lists all 55 A/AA criteria. Fail
+ * rows come from findings (criterion numbers in Reference, or the WCAG SC
+ * column); Pass / N/A / Needs manual check come from audit-meta.json
+ * `criteriaResults`; everything else is "Not tested". A Fail from a finding
+ * always wins over an auditor Pass, with a warning.
+ *
  * BRAND COLORS BELOW ARE PLACEHOLDERS approximated from the HTML deck
  * system — confirm against the actual brand guide before client delivery
  * and update the hex values if they're off.
  */
 
 const fs = require("fs");
+const { WCAG22_AA, BY_SC, OBSOLETE, scSortKey, extractSCs } = require("./wcag22-criteria");
 const path = require("path");
 const {
   Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell,
@@ -133,6 +141,37 @@ function normVerification(v) {
 }
 
 // ============================================================================
+// Standard values (see SKILL.md Finding Documentation, Phase 3 / D2)
+// ============================================================================
+
+const STANDARD = {
+  WCAG21: "WCAG 2.1 AA",
+  WCAG22NEW: "WCAG 2.2 AA (new)",
+  BEST: "Best practice"
+};
+
+// Returns the canonical Standard value, or "" if the text isn't one.
+function normStandard(v) {
+  const k = normKey(v || "");
+  if (!k) return "";
+  if (k.startsWith("wcag21")) return STANDARD.WCAG21;
+  if (k.startsWith("wcag22")) return STANDARD.WCAG22NEW;
+  if (k.startsWith("best")) return STANDARD.BEST;
+  return "";
+}
+
+const RESULT = { PASS: "Pass", FAIL: "Fail", NOT_TESTED: "Not tested", MANUAL: "Needs manual check", NA: "N/A" };
+function normResult(v) {
+  const k = normKey(v || "");
+  if (k === "pass" || k === "passed") return RESULT.PASS;
+  if (k === "fail" || k === "failed") return RESULT.FAIL;
+  if (k === "nottested" || k === "untested") return RESULT.NOT_TESTED;
+  if (k.startsWith("needsmanual") || k === "manual" || k === "manualcheck") return RESULT.MANUAL;
+  if (k === "na" || k === "notapplicable") return RESULT.NA;
+  return null;
+}
+
+// ============================================================================
 // Severity x Scope deduction table (see SKILL.md Scoring)
 // ============================================================================
 
@@ -170,6 +209,9 @@ function hasColumn(rows, candidates) {
 }
 
 const EVIDENCE_COLUMNS_PRESENT = {};
+const STANDARD_KEYS = ["Standard", "Conformance", "Conformance Standard"];
+const REFERENCE_KEYS = ["Standard/Heuristic", "Heuristic", "Reference", "WCAG"];
+const SC_KEYS = ["WCAG SC", "SC", "Success Criterion", "Success Criteria"];
 
 function loadFindings(csvPath) {
   const raw = fs.readFileSync(csvPath, "utf-8");
@@ -183,15 +225,32 @@ function loadFindings(csvPath) {
     console.warn(`Warning: ${csvPath} has no ${missingCols.join("/")} column(s) (pre-v1.5 format). The doc will build, but findings won't show what they're based on or how they were confirmed.`);
   }
 
-  return rows.map(r => {
+  const standardColumn = hasColumn(rows, STANDARD_KEYS);
+
+  const findings = rows.map(r => {
     const severity = pick(r, ["Severity"]);
     const scope = pick(r, ["Scope"]);
+    // "Standard" used to be accepted as the Reference column. Tell them apart
+    // by value: a conformance label is a Standard, anything else is a Reference.
+    const standardRaw = pick(r, STANDARD_KEYS);
+    const standard = normStandard(standardRaw);
+    let reference = pick(r, REFERENCE_KEYS);
+    let standardUnrecognized = "";
+    if (standardRaw && !standard) {
+      if (!reference) reference = standardRaw; else standardUnrecognized = standardRaw;
+    }
+    const scOverride = pick(r, SC_KEYS);
     return {
+      _standardColumn: standardColumn,
+      _standardUnrecognized: standardUnrecognized,
+      standard,
+      scs: extractSCs(scOverride || reference),
+      _scFromOverride: !!scOverride,
       id: pick(r, ["ID"]),
       dimension: pick(r, ["Dimension"]),
       severity,
       scope,
-      reference: pick(r, ["Standard/Heuristic", "Standard", "Heuristic", "Reference", "WCAG"]),
+      reference,
       location: pick(r, ["Location"]),
       observation: pick(r, ["Observation"]),
       impact: pick(r, ["Impact"]),
@@ -203,6 +262,107 @@ function loadFindings(csvPath) {
       instances: pick(r, INSTANCES_KEYS)
     };
   });
+
+  checkStandards(findings, standardColumn, csvPath);
+  return findings;
+}
+
+// Validate cited criteria and the Standard label; fill a blank Standard from
+// the cited criteria. Warnings only — never fails the build.
+function checkStandards(findings, standardColumn, csvPath) {
+  const isA11y = f => normKey(f.dimension) === "accessibility";
+  if (!standardColumn && findings.some(isA11y)) {
+    console.warn(`Warning: ${csvPath} has no Standard column (pre-v1.5.2 format). Accessibility findings won't say whether they fail the WCAG 2.1 AA legal baseline; it will be inferred from cited criteria where possible.`);
+  }
+  const derived = [];
+  findings.forEach(f => {
+    if (f._standardUnrecognized) {
+      console.warn(`Warning: ${f.id}: Standard "${f._standardUnrecognized}" not recognized; use ${Object.values(STANDARD).join(" | ")}.`);
+    }
+    const unknown = f.scs.filter(sc => !BY_SC[sc]);
+    unknown.forEach(sc => console.warn(`Warning: ${f.id}: ${OBSOLETE[sc] || `"${sc}" is not a WCAG 2.2 A/AA success criterion`} — not used in the conformance table.`));
+    f.scs = f.scs.filter(sc => BY_SC[sc]);
+    const known = f.scs.map(sc => BY_SC[sc]);
+    if (!f.standard && known.length) {
+      f.standard = known.some(c => !c.isNew22) ? STANDARD.WCAG21 : STANDARD.WCAG22NEW;
+      derived.push(`${f.id} → ${f.standard}`);
+    } else if (f.standard === STANDARD.WCAG21 && known.length && known.every(c => c.isNew22)) {
+      console.warn(`Warning: ${f.id}: Standard is "${STANDARD.WCAG21}" but it only cites criteria new in WCAG 2.2 (${f.scs.join(", ")}). Use "${STANDARD.WCAG22NEW}".`);
+    } else if (f.standard === STANDARD.WCAG22NEW && known.length && known.every(c => !c.isNew22)) {
+      console.warn(`Warning: ${f.id}: Standard is "${STANDARD.WCAG22NEW}" but it only cites WCAG 2.1 criteria (${f.scs.join(", ")}). Use "${STANDARD.WCAG21}".`);
+    }
+    if (isA11y(f) && !f.standard) {
+      console.warn(`Warning: ${f.id}: Accessibility finding has no Standard and cites no WCAG criterion.`);
+    }
+    else if (isA11y(f) && f.standard !== STANDARD.BEST && !f.scs.length) {
+      console.warn(`Warning: ${f.id}: no WCAG success criterion found in Reference — it won't appear in the conformance table. Add one to Reference or the WCAG SC column.`);
+    }
+  });
+  if (derived.length) console.log(`Note: Standard filled in from cited criteria: ${derived.join(", ")}.`);
+}
+
+// ============================================================================
+// WCAG 2.2 AA conformance table (Appendix D)
+//   Fail       — derived from findings (Best-practice findings excluded)
+//   Pass / N/A / Needs manual check — from meta.criteriaResults
+//   otherwise  — Not tested
+// ============================================================================
+
+function buildConformance(findings, meta) {
+  const ids = new Set(findings.map(f => f.id));
+  const failsFrom = {};
+  findings.filter(f => f.standard !== STANDARD.BEST).forEach(f => {
+    f.scs.forEach(sc => { (failsFrom[sc] = failsFrom[sc] || []).push(f.id); });
+  });
+
+  const entries = {};
+  const raw = Array.isArray(meta.criteriaResults) ? meta.criteriaResults : [];
+  if (meta.criteriaResults !== undefined && meta.criteriaResults !== null && !Array.isArray(meta.criteriaResults)) {
+    console.warn("Warning: audit-meta.json criteriaResults should be an array — ignored.");
+  }
+  raw.forEach((e, i) => {
+    const sc = String(e && e.sc || "").trim();
+    if (!BY_SC[sc]) {
+      console.warn(`Warning: criteriaResults[${i}]: ${OBSOLETE[sc] || `"${sc}" is not a WCAG 2.2 A/AA success criterion`} — ignored.`);
+      return;
+    }
+    const result = normResult(e.result);
+    if (!result) {
+      console.warn(`Warning: criteriaResults ${sc}: result "${e.result}" not recognized; use ${Object.values(RESULT).join(" | ")} — ignored.`);
+      return;
+    }
+    if (entries[sc]) console.warn(`Warning: criteriaResults lists ${sc} more than once — using the last entry.`);
+    const listed = String(e.findings || "").split(/[,;\s]+/).filter(Boolean);
+    listed.filter(id => !ids.has(id)).forEach(id => console.warn(`Warning: criteriaResults ${sc} references ${id}, which isn't in findings.csv.`));
+    entries[sc] = { result, note: e.note || "", findings: listed };
+  });
+
+  if (!Object.keys(failsFrom).length && !Object.keys(entries).length) return null;
+
+  const rows = WCAG22_AA.map(c => {
+    const e = entries[c.sc];
+    const fromFindings = failsFrom[c.sc] || [];
+    let result = e ? e.result : RESULT.NOT_TESTED;
+    if (fromFindings.length && result !== RESULT.FAIL) {
+      if (e) console.warn(`Warning: ${c.sc} ${c.name}: criteriaResults says "${e.result}" but ${fromFindings.join(", ")} fail${fromFindings.length === 1 ? "s" : ""} it — reported as Fail.`);
+      result = RESULT.FAIL;
+    }
+    const allFindings = [...new Set([...fromFindings, ...(e ? e.findings : [])])];
+    if (result === RESULT.FAIL && !allFindings.length) {
+      console.warn(`Warning: ${c.sc} ${c.name}: marked Fail in criteriaResults but no finding cites it. Add a finding or a note explaining the failure.`);
+    }
+    const notes = [allFindings.join(", "), e ? e.note : ""].filter(Boolean).join(" — ");
+    return { ...c, result, notes };
+  });
+
+  const count = r => rows.filter(x => x.result === r).length;
+  const failed = rows.filter(r => r.result === RESULT.FAIL);
+  return {
+    rows,
+    counts: Object.fromEntries(Object.values(RESULT).map(r => [r, count(r)])),
+    failedBaseline: failed.filter(r => !r.isNew22).length,
+    failedNew22: failed.filter(r => r.isNew22).length
+  };
 }
 
 // ============================================================================
@@ -221,7 +381,7 @@ function loadMeta(metaPath) {
     roadmapPhases: [],
     methodology: [
       "Nielsen Norman Group's 10 Usability Heuristics",
-      "WCAG 2.1 Level AA",
+      "WCAG 2.2 Level AA (findings labeled where they also fail the WCAG 2.1 AA legal baseline)",
       "Healthcare UX best practices (health literacy, trust signals, regulatory UX)"
     ]
   };
@@ -299,6 +459,8 @@ function buildAuditData(findings, meta) {
     roadmapPhases: meta.roadmapPhases,
     dimensions: dimensions.map(d => ({ name: d.name, score: d.score, findings: d.findings })),
     methodology: meta.methodology,
+    complianceBaseline: meta.complianceBaseline || null,
+    conformance: buildConformance(findings, meta),
     scoringRows
   };
 }
@@ -443,10 +605,46 @@ function simpleTable(headerRow, rows, colWidths) {
   });
 }
 
+const RESULT_COLOR = { Fail: "C0392B", Pass: "1E8449", "Needs manual check": "B9770E", "Not tested": MUTED, "N/A": MUTED };
+
+function conformanceTable(rows) {
+  const widths = [900, 3600, 700, 1600, 2560];
+  const cell = (text, width, opts = {}) => new TableCell({
+    width: { size: width, type: WidthType.DXA },
+    shading: opts.header ? { type: ShadingType.CLEAR, fill: NAVY } : undefined,
+    verticalAlign: VerticalAlign.CENTER,
+    margins: { top: 60, bottom: 60, left: 100, right: 100 },
+    children: [new Paragraph({
+      children: [
+        new TextRun({ text: String(text), font: FONT, bold: opts.header || opts.bold, color: opts.header ? WHITE : (opts.color || INK), size: opts.header ? 18 : 17 }),
+        ...(opts.suffix ? [new TextRun({ text: opts.suffix, font: FONT, color: MUTED, italics: true, size: 15 })] : [])
+      ]
+    })]
+  });
+  return new Table({
+    width: { size: widths.reduce((a, b) => a + b, 0), type: WidthType.DXA },
+    columnWidths: widths,
+    rows: [
+      new TableRow({ tableHeader: true, children: ["SC", "Criterion", "Level", "Result", "Findings / Notes"].map((h, i) => cell(h, widths[i], { header: true })) }),
+      ...rows.map(r => new TableRow({
+        cantSplit: true,
+        children: [
+          cell(r.sc, widths[0]),
+          cell(r.name, widths[1], { suffix: r.isNew22 ? "  new in 2.2" : "" }),
+          cell(r.level, widths[2]),
+          cell(r.result, widths[3], { color: RESULT_COLOR[r.result], bold: r.result === "Fail" }),
+          cell(r.notes, widths[4])
+        ]
+      }))
+    ]
+  });
+}
+
 function findingBlock(f) {
   return [
     findingHeading(f.id, f.severity, f.scope),
     labelValue("Reference", f.reference),
+    ...(f.standard ? [labelValue("Standard", f.standard === STANDARD.WCAG21 ? `${f.standard} (legal baseline)` : f.standard)] : []),
     // v1.5 evidence fields — omitted when empty so pre-v1.5 CSVs render as before.
     ...(f.evidence ? [mutedLabelValue("Evidence", f.evidence)] : []),
     ...(f.verification ? [mutedLabelValue("Verification", f.verification)] : []),
@@ -554,6 +752,7 @@ function build(data) {
       spacing: { after: 80 }, bullet: { level: 0 },
       children: [new TextRun({ text: t, font: FONT, color: INK, size: 20 })]
     })),
+    ...(data.complianceBaseline ? [spacer(80), labelValue("Compliance baseline", data.complianceBaseline)] : []),
     heading("B. Scoring Calculations", HeadingLevel.HEADING_2),
     body("Dimension scores use the Severity \u00D7 Scope deduction table, not a flat per-severity deduction — findings with the same Severity but different Scope are weighted differently."),
     spacer(200),
@@ -570,6 +769,20 @@ function build(data) {
       [2500, 2100, 2100, 2100]
     )
   ];
+
+  const conf = data.conformance;
+  if (conf) {
+    const c = conf.counts;
+    appendixChildren.push(
+      spacer(280),
+      heading("D. WCAG 2.2 AA Conformance", HeadingLevel.HEADING_2),
+      body(`Every WCAG 2.2 Level A and AA success criterion and its result for this audit. Fail results come from the findings in this report; Pass, N/A, and Needs manual check were recorded by the auditor; anything not assessed is shown as Not tested.${data.complianceBaseline ? ` Compliance baseline for this client: ${data.complianceBaseline}.` : ""}`),
+      labelValue("Summary", `${c.Fail} Fail \u00B7 ${c.Pass} Pass \u00B7 ${c["Needs manual check"]} Needs manual check \u00B7 ${c["N/A"]} N/A \u00B7 ${c["Not tested"]} Not tested`),
+      labelValue("Failed criteria", `${conf.failedBaseline} in the WCAG 2.1 AA legal baseline \u00B7 ${conf.failedNew22} new in WCAG 2.2`),
+      spacer(120),
+      conformanceTable(conf.rows)
+    );
+  }
 
   return new Document({
     styles: { default: { document: { run: { font: FONT, size: 21, color: INK } } } },
@@ -641,6 +854,9 @@ if (inferred.length) {
 }
 
 const meta = loadMeta(META_PATH);
+if (!meta.complianceBaseline && findings.some(f => normKey(f.dimension) === "accessibility")) {
+  console.warn("Warning: audit-meta.json has no complianceBaseline. Confirm which standard applies to this client (see references/regulatory-context.md).");
+}
 const auditData = buildAuditData(findings, meta);
 
 fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });

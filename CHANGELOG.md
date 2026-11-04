@@ -2,6 +2,63 @@
 
 All notable changes to this skill are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.5.2] - 2026-11-03
+
+Phase 3 of the v1.5 plan: accessibility baseline. Audits now evaluate against **WCAG 2.2 AA**, and every accessibility finding is labeled to show whether it also fails the **WCAG 2.1 AA** legal baseline (decision D2).
+
+### Added
+- **`references/accessibility-checklist.md` rewritten for WCAG 2.2 AA:**
+  - All 55 A/AA success criteria, each tagged `[SC · Level · version introduced]`.
+  - The six criteria new in 2.2: 2.4.11 Focus Not Obscured (Min), 2.5.7 Dragging Movements, 2.5.8 Target Size (Min), 3.2.6 Consistent Help, 3.3.7 Redundant Entry, 3.3.8 Accessible Authentication (Min).
+  - 4.1.1 Parsing removed, with a note on where real markup problems belong instead.
+  - Automation hints pointing to `capture-site.js` fields and axe rules, a Standard-labeling guide, and a target-size table.
+  - A **Needs manual verification** section: alt-text quality, focus-order sense, keyboard traps in custom widgets, screen reader output, error announcement, reflow at 400%/320px, focus not obscured, authentication/redundant entry, axe `incomplete` items.
+  - Table of contents.
+- **`Standard` finding field / CSV column:** `WCAG 2.1 AA` (legal baseline) | `WCAG 2.2 AA (new)` | `Best practice`. Shown under Reference in the Word doc, with "(legal baseline)" appended for 2.1.
+- **`references/regulatory-context.md`** (undated):
+  - The HHS Section 504 rule requires WCAG 2.1 AA from HHS-funded recipients. Whether it applies, and which compliance date applies, depend on the client and are checked at audit time.
+  - Short notes on ADA Title II/III, EN 301 549 and client policy, with a not-legal-advice framing.
+  - New `audit-meta.json` field `complianceBaseline`.
+- **Appendix D, WCAG 2.2 AA Conformance**, in the Word report:
+  - Lists all 55 criteria with Pass / Fail / Needs manual check / N/A / Not tested, a summary line, and a count of failed criteria in the 2.1 baseline vs new in 2.2.
+  - Fail rows are derived from findings: the criterion number in Reference, or an optional `WCAG SC` column. Best-practice findings never create a Fail.
+  - Pass / N/A / Needs manual check come only from `audit-meta.json` `criteriaResults`. Anything not listed is Not tested.
+  - The script never writes Pass on its own.
+- `scripts/wcag22-criteria.js`: the shared WCAG 2.2 A/AA list (number, name, level, version introduced).
+
+### Changed
+- **Touch-target guidance fixed** in SKILL.md (dimensions 2 and 7), the checklist and README. Below 24×24 CSS px fails WCAG 2.5.8 (AA); 24–43px is a best-practice finding (44px recommended, usually Minor). The incorrect "44px AA minimum" claim is gone.
+- SKILL.md: dimension 2 is now WCAG 2.2 AA and links the regulatory note; the finding format adds `Standard` with definitions; the Word workflow documents Appendix D, `criteriaResults` and `complianceBaseline`. The description now says WCAG 2.2 AA.
+- Default methodology line and `assets/audit-meta.example.json` updated to WCAG 2.2 AA. The example metadata gains `complianceBaseline` and a sample `criteriaResults`.
+- `assets/findings.example.csv` gains a `Standard` column; `assets/audit-report-template.md` gains Standard, a Compliance Baseline line, and an Appendix D table.
+
+### Warnings (never fail the build)
+- **Results:**
+  - An auditor Pass / Needs manual check conflicts with a failing finding (reported as Fail).
+  - A criterion is marked Fail with no finding behind it.
+  - A `criteriaResults` entry has an unknown criterion, 4.1.1, an unrecognized result, or a finding ID not in the CSV.
+- **Standard:**
+  - The Standard label doesn't match the cited criteria.
+  - An accessibility finding has no Standard and cites no criterion, or cites no criterion when it isn't Best practice.
+  - `complianceBaseline` is missing on an audit with accessibility findings.
+- **Back-compat:**
+  - A CSV without a `Standard` column builds with a warning, and Standard is filled in from cited criteria.
+  - A legacy CSV that used `Standard` as its Reference header is recognized by value and builds as before.
+
+### Verified
+- Checklist ↔ script cross-check: 55 tagged items, 55 unique criteria; every number, level and version matches `wcag22-criteria.js`.
+- `grep` for 44px claims: every remaining mention presents 44px as a recommendation; no "44px … AA" claims.
+- Old-format CarePath-equivalent CSV: still 87.5%; 43 / 38.5 / 48.5 / 45; Top 5 ACC-001, UH-003, MOB-001, UH-001, ACC-002. No v1.4 line removed. The only changed line is the methodology bullet from the updated example metadata; additions are Standard lines and Appendix D.
+- Edge-case fixture (11 findings plus a `criteriaResults` with planted errors):
+  - 30px target labeled Best practice cites 2.5.8 and creates no Fail.
+  - Pass on 2.4.7 overridden to Fail.
+  - Fail on 1.3.1 with no finding warned.
+  - 9.9.9, 4.1.1, "Maybe" and ACC-999 each warned.
+  - Mismatched Standard on ACC-005 warned.
+  - The summary counts (5 Fail · 2 Pass · 1 N/A · 47 Not tested; 4 baseline · 1 new) match a hand count.
+- Rendered (Quick Look) and inspected: Standard under Reference; Appendix D table with colored results and "new in 2.2" marks.
+- `assets/findings.example.csv` + example metadata build with no warnings. `--strict` still exits 1 on an Inferred finding.
+
 ## [1.5.1] - 2026-11-03
 
 Phase 2 of the v1.5 plan: fix `capture-site.js`. Capture is now reliable. Screenshots still default to off (decision D3), and deliverable screenshots stay manual.
