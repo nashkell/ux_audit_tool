@@ -2,7 +2,8 @@
 
 **Website**: [URL]  
 **Date**: [DATE]  
-**Pages/Flows Audited**: [PAGES/FLOWS]
+**Pages/Flows Audited**: [PAGES/FLOWS]  
+**Compliance Baseline**: [e.g. WCAG 2.1 AA — HHS Section 504; confirmed with client — see references/regulatory-context.md]
 
 ---
 
@@ -74,7 +75,8 @@
 #### [FINDING-ID]
 - **Severity**: 🔴/🟠/🟡/⚪
 - **Scope**: Site-wide / Page-level / Element-level
-- **WCAG**: [Criterion]
+- **WCAG**: [Criterion number and name, e.g. 2.4.7 Focus Visible]
+- **Standard**: WCAG 2.1 AA (legal baseline) / WCAG 2.2 AA (new) / Best practice
 - **Location**: [Page/Element]
 - **Observation**: [Description]
 - **Impact**: [Affected users]
@@ -137,8 +139,20 @@
 
 ### B. Methodology
 - NN/g 10 Usability Heuristics
-- WCAG 2.1 Level AA
+- WCAG 2.2 Level AA (findings labeled where they also fail the WCAG 2.1 AA legal baseline)
 - Healthcare UX Best Practices
 
 ### C. Scoring Calculations
 [Dimension score breakdowns — show deduction per finding using the Severity × Scope table in SKILL.md, not a flat per-severity deduction]
+
+### D. WCAG 2.2 AA Conformance
+
+**Summary**: [#] Fail · [#] Pass · [#] Needs manual check · [#] N/A · [#] Not tested
+**Failed criteria**: [#] in the WCAG 2.1 AA legal baseline · [#] new in WCAG 2.2
+
+| SC | Criterion | Level | Result | Findings / Notes |
+|----|-----------|-------|--------|------------------|
+| 1.1.1 | Non-text Content | A | [Pass / Fail / Needs manual check / N/A / Not tested] | [IDs, note] |
+| … | *(every WCAG 2.2 A/AA criterion — see references/accessibility-checklist.md)* | | | |
+
+*Fail = a finding in this report fails it. Pass / N/A / Needs manual check = recorded by the auditor. Anything not assessed = Not tested. Never mark Pass for a criterion that wasn't checked.*

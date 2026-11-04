@@ -6,6 +6,9 @@
   "date": "July 8, 2026",
   "pagesAudited": "Homepage, Appointment Booking, Password Reset, Insurance FAQ, Contact",
 
+  "complianceBaseline": "WCAG 2.1 AA — HHS Section 504 (recipient, confirmed by client)",
+  "_complianceBaseline_comment": "Which accessibility standard this client is held to. Confirm with the client at audit setup — see references/regulatory-context.md. Use 'Not confirmed — client to advise' rather than guessing.",
+
   "sampleNote": null,
   "_sampleNote_comment": "Set to a string like 'This sample covers N of 8 dimensions...' for demo/partial audits, or null to omit for a full audit.",
 
@@ -20,9 +23,17 @@
     { "name": "3. Polish & Content Refinement", "focus": "One sentence.", "timeframe": "3+ months" }
   ],
 
+  "criteriaResults": [
+    { "sc": "1.2.1", "result": "N/A", "note": "No audio or video on audited pages" },
+    { "sc": "2.1.1", "result": "Pass", "note": "All audited pages operable by keyboard" },
+    { "sc": "2.5.8", "result": "Pass", "note": "No targets under 24x24 px found" },
+    { "sc": "3.3.8", "result": "Needs manual check", "note": "Login CAPTCHA not yet tested with a password manager" }
+  ],
+  "_criteriaResults_comment": "WCAG 2.2 A/AA criteria YOU assessed. Fail rows are filled in automatically from findings — list only Pass, N/A, and Needs manual check here (or a Fail with a note if no finding covers it). Anything not listed shows as Not tested. Never mark Pass for a criterion you didn't check. Omit the field entirely to skip it; Appendix D still appears if any finding cites a WCAG criterion.",
+
   "methodology": [
     "Nielsen Norman Group's 10 Usability Heuristics",
-    "WCAG 2.1 Level AA",
+    "WCAG 2.2 Level AA (findings labeled where they also fail the WCAG 2.1 AA legal baseline)",
     "Healthcare UX best practices (health literacy, trust signals, regulatory UX)"
   ]
 }

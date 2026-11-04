@@ -1,6 +1,6 @@
 ---
 name: ux-audit
-description: Conduct comprehensive UX audits of websites. Use when the user provides a website URL and requests a UX audit, usability evaluation, accessibility review, or heuristic analysis. Evaluates sites against WCAG 2.1 accessibility standards, Nielsen Norman Group's 10 usability heuristics, healthcare-specific UX considerations, information architecture, visual design, and user flow analysis. Works in Claude Code (via Puppeteer), Cowork (via Chrome), or chat (with provided screenshots). Outputs a structured audit report with prioritized findings and recommendations, optionally rendered as a branded Word (.docx) deliverable.
+description: Conduct comprehensive UX audits of websites. Use when the user provides a website URL and requests a UX audit, usability evaluation, accessibility review, or heuristic analysis. Evaluates sites against WCAG 2.2 AA accessibility standards (labeling the WCAG 2.1 AA legal baseline), Nielsen Norman Group's 10 usability heuristics, healthcare-specific UX considerations, information architecture, visual design, and user flow analysis. Works in Claude Code (via Puppeteer), Cowork (via Chrome), or chat (with provided screenshots). Outputs a structured audit report with prioritized findings and recommendations, optionally rendered as a branded Word (.docx) deliverable.
 ---
 
 # UX Audit Skill
@@ -95,13 +95,15 @@ See `references/heuristics-checklist.md`
 | 9 | Error Recovery | Plain language errors, solutions |
 | 10 | Help & Documentation | Searchable, contextual, task-focused |
 
-### 2. Accessibility (WCAG 2.1 AA)
-See `references/accessibility-checklist.md`
+### 2. Accessibility (WCAG 2.2 AA)
+See `references/accessibility-checklist.md` (every A/AA criterion, tagged) and `references/regulatory-context.md` (which baseline applies to the client).
 
-- **Perceivable**: Contrast 4.5:1, alt text, captions
-- **Operable**: Keyboard nav, focus visible, touch targets 44px
-- **Understandable**: Readable, predictable, input assistance
-- **Robust**: Valid markup, accessible names
+- **Perceivable**: Contrast 4.5:1, alt text, captions, reflow
+- **Operable**: Keyboard nav, focus visible and not obscured, target size (below 24×24 CSS px fails 2.5.8; 24–43px is a best-practice finding, 44px recommended), dragging alternatives
+- **Understandable**: Readable, predictable, consistent help, input assistance, no redundant entry, accessible authentication
+- **Robust**: Accessible names, roles, states; status messages
+
+Audit to WCAG 2.2 AA, and label every accessibility finding with its **Standard** so the client can see what fails the WCAG 2.1 AA legal baseline. Items in the checklist's "Needs manual verification" section (alt-text quality, focus-order sense, screen reader output, reflow at 400%) can't be settled from capture data alone.
 
 ### 3. Visual Design
 - Hierarchy and focal points
@@ -129,7 +131,7 @@ See `references/accessibility-checklist.md`
 - Error recovery paths
 
 ### 7. Mobile/Responsive
-- Touch targets (44x44px min)
+- Touch targets: below 24×24 CSS px fails WCAG 2.5.8 (AA); 24–43px is a best-practice finding (44px recommended, usually Minor)
 - Content prioritization
 - Navigation patterns
 - Text readability without zoom
@@ -154,12 +156,15 @@ Location: [Page/Element]
 Observation: [What was found]
 Impact: [User/business effect]
 Recommendation: [Specific fix]
-Reference: [Standard violated]
+Reference: [Standard violated — include the WCAG criterion number, e.g. "WCAG 2.4.7 Focus Visible"]
+Standard: [WCAG 2.1 AA | WCAG 2.2 AA (new) | Best practice] (accessibility findings)
 Evidence: [URL(s); CSS selector or element description; axe rule ID if any; screenshot ref if any]
 Verification: [Automated-confirmed | Observed live | Inferred — needs human check]
 Instances: [Count + list of pages, when the same issue appears in more than one place]
 At a Glance: [One-sentence client-facing takeaway]
 ```
+
+**Standard** says which bar the finding fails. `WCAG 2.1 AA` = a WCAG 2.0/2.1 A or AA criterion (the legal baseline). `WCAG 2.2 AA (new)` = only one of the six criteria new in 2.2. `Best practice` = no A/AA criterion failed, but users are still affected. Required on accessibility findings; leave blank elsewhere unless a finding cites WCAG. If it's blank, the Word builder fills it from the criterion number in Reference. Rules and the target-size table are in `references/accessibility-checklist.md`.
 
 **Evidence** is what the finding is based on — specific enough that someone else can go and see it. Name the URL(s), the selector or a plain description of the element, the axe rule ID if automation flagged it, and a screenshot reference if one exists.
 
@@ -308,6 +313,12 @@ Workflow:
 
 CSV column names are matched case- and punctuation-insensitively (`At a Glance`, `at_a_glance`, etc. all resolve), so minor header variations across exports are fine. See `assets/findings.example.csv` for the expected format.
 
+**WCAG conformance table (Appendix D).** The builder lists all 55 WCAG 2.2 A/AA criteria with a result:
+- **Fail** is filled in from findings: the criterion number in Reference (or an optional `WCAG SC` column). `Best practice` findings never create a Fail.
+- **Pass, N/A, Needs manual check** come only from the auditor, in `audit-meta.json` `criteriaResults` (`[{ "sc": "2.1.1", "result": "Pass", "note": "..." }]`). Anything not listed is **Not tested**. Never mark Pass for a criterion you didn't check.
+- If the auditor marks Pass but a finding fails the criterion, the report shows Fail and warns. A Fail with no finding behind it also warns.
+- Set `complianceBaseline` in `audit-meta.json` (see `references/regulatory-context.md`); the build warns if it's missing.
+
 The `Evidence`, `Verification`, and `Instances` columns are shown in small, muted text under each finding's Reference. A CSV without them (pre-v1.5) still builds, with a warning. Any finding with Verification = Inferred triggers a warning listing its ID; add `--strict` to make the build exit non-zero instead — use it for the final client build:
 ```bash
 node scripts/docx-report-template.js findings.csv audit-meta.json output.docx --strict
@@ -317,4 +328,4 @@ The script's brand palette (navy/purple/lime/teal, Inter typeface) is approximat
 
 ---
 
-*Skill Version: 1.5.1 — see `CHANGELOG.md` for version history.*
+*Skill Version: 1.5.2 — see `CHANGELOG.md` for version history.*
