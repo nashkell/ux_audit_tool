@@ -48,6 +48,10 @@
  * `criteriaResults`; everything else is "Not tested". A Fail from a finding
  * always wins over an auditor Pass, with a warning.
  *
+ * audit-meta.json `keyTasks` lists the 2-3 user tasks walked through live
+ * (task, start, success, result, findings, notes). They appear as a table
+ * in Appendix A; a missing field, unknown result, or unknown finding ID warns.
+ *
  * BRAND COLORS BELOW ARE PLACEHOLDERS approximated from the HTML deck
  * system — confirm against the actual brand guide before client delivery
  * and update the hex values if they're off.
@@ -169,6 +173,52 @@ function normResult(v) {
   if (k.startsWith("needsmanual") || k === "manual" || k === "manualcheck") return RESULT.MANUAL;
   if (k === "na" || k === "notapplicable") return RESULT.NA;
   return null;
+}
+
+// Key-task walkthrough outcomes (audit-meta.json keyTasks[].result).
+const TASK_RESULT = {
+  DONE: "Completed", HARD: "Completed with difficulty", FAILED: "Not completed", SKIPPED: "Not attempted"
+};
+function normTaskResult(v) {
+  const k = normKey(v || "");
+  if (k === "completed" || k === "complete" || k === "success") return TASK_RESULT.DONE;
+  if (k.startsWith("completedwith") || k === "difficult" || k === "partial") return TASK_RESULT.HARD;
+  if (k === "notcompleted" || k === "failed" || k === "fail" || k === "blocked") return TASK_RESULT.FAILED;
+  if (k === "notattempted" || k === "skipped") return TASK_RESULT.SKIPPED;
+  return null;
+}
+
+// keyTasks: [{ task, start, success, result, findings: [ids], notes }]. A bare
+// string is accepted as { task }. Returns rows for the Appendix A table.
+function resolveKeyTasks(findings, meta) {
+  if (meta.keyTasks === undefined || meta.keyTasks === null) {
+    console.warn("Warning: audit-meta.json has no keyTasks. Record the 2-3 user tasks you walked through (SKILL.md, Audit Setup).");
+    return [];
+  }
+  if (!Array.isArray(meta.keyTasks)) {
+    console.warn("Warning: audit-meta.json keyTasks should be an array — ignored.");
+    return [];
+  }
+  const ids = new Set(findings.map(f => f.id));
+  return meta.keyTasks.map((raw, i) => {
+    const t = typeof raw === "string" ? { task: raw } : (raw || {});
+    const label = t.task || `keyTasks[${i}]`;
+    if (!t.task) console.warn(`Warning: keyTasks[${i}] has no task description.`);
+    let result = normTaskResult(t.result);
+    if (!t.result) {
+      console.warn(`Warning: keyTasks "${label}": no result. Use ${Object.values(TASK_RESULT).join(" | ")}.`);
+      result = TASK_RESULT.SKIPPED;
+    } else if (!result) {
+      console.warn(`Warning: keyTasks "${label}": result "${t.result}" not recognized; use ${Object.values(TASK_RESULT).join(" | ")}.`);
+      result = String(t.result);
+    }
+    const related = Array.isArray(t.findings) ? t.findings.map(String) : (t.findings ? String(t.findings).split(/[,;\s]+/).filter(Boolean) : []);
+    related.filter(id => !ids.has(id)).forEach(id => console.warn(`Warning: keyTasks "${label}" references ${id}, which isn't in findings.csv.`));
+    if ((result === TASK_RESULT.HARD || result === TASK_RESULT.FAILED) && !related.length) {
+      console.warn(`Warning: keyTasks "${label}" is "${result}" but lists no findings. Link the findings that explain it.`);
+    }
+    return { task: t.task || "\u2014", start: t.start || "", success: t.success || "", result, findings: related, notes: t.notes || "" };
+  });
 }
 
 // ============================================================================
@@ -559,6 +609,7 @@ function buildAuditData(findings, meta) {
     dimensionCount: dimensions.length,
     methodology: meta.methodology,
     complianceBaseline: meta.complianceBaseline || null,
+    keyTasks: resolveKeyTasks(findings, meta),
     conformance: buildConformance(findings, meta),
     scoringRows
   };
@@ -853,6 +904,21 @@ function build(data) {
       children: [new TextRun({ text: t, font: FONT, color: INK, size: 20 })]
     })),
     ...(data.complianceBaseline ? [spacer(80), labelValue("Compliance baseline", data.complianceBaseline)] : []),
+    ...(data.keyTasks.length ? [
+      spacer(120),
+      heading("Key tasks walked through", HeadingLevel.HEADING_3),
+      body("Each task was performed live in the browser, including deliberate errors (empty and invalid input, Back, and refresh mid-flow)."),
+      simpleTable(
+        ["Task", "Start \u2192 success", "Result", "Findings"],
+        data.keyTasks.map(t => [
+          t.task + (t.notes ? ` (${t.notes})` : ""),
+          [t.start, t.success].filter(Boolean).join(" \u2192 ") || "\u2014",
+          t.result,
+          t.findings.join(", ") || "\u2014"
+        ]),
+        [3200, 2760, 1700, 1700]
+      )
+    ] : []),
     heading("B. Scoring Calculations", HeadingLevel.HEADING_2),
     body("Dimension scores use the Severity \u00D7 Scope deduction table, not a flat per-severity deduction — findings with the same Severity but different Scope are weighted differently."),
     body(`Overall health averages the ${data.dimensionCount} evaluated dimension${data.dimensionCount === 1 ? "" : "s"}; an evaluated dimension with no findings scores 50 / 50.${data.notEvaluated && data.notEvaluated.length ? ` Not evaluated, and left out of the average: ${data.notEvaluated.join(", ")}.` : ""} Scores are comparable only between audits of the same scope.`),

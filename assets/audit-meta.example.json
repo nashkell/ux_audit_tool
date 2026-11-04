@@ -27,6 +27,13 @@
     { "name": "3. Polish & Content Refinement", "focus": "Rewrite the insurance FAQ in plain language and group it, standardize terminology and button styles, and tidy remaining copy.", "timeframe": "3+ months" }
   ],
 
+  "keyTasks": [
+    { "task": "Book a new-patient appointment", "start": "Homepage", "success": "Reached the final Confirm step with a time selected", "result": "Completed with difficulty", "findings": ["FLOW-001", "UH-001", "UH-002", "ACC-002", "ACC-004", "CON-002", "MOB-001", "HC-003"], "notes": "stopped before the final confirm to avoid reserving a real slot; keyboard-only attempt blocked at the confirm button" },
+    { "task": "Reset a forgotten password", "start": "Sign-in link in header", "success": "Signed in with the new password", "result": "Completed with difficulty", "findings": ["ACC-005", "CON-003", "FLOW-002"], "notes": "test account supplied by client" },
+    { "task": "Find out whether my insurance plan is accepted", "start": "Homepage", "success": "Answer found on the Insurance FAQ", "result": "Completed with difficulty", "findings": ["IA-002", "CON-001", "ACC-006"] }
+  ],
+  "_keyTasks_comment": "The 2-3 tasks you defined at audit setup and performed live, including deliberate errors (empty submit, invalid input, Back, refresh mid-flow). result: Completed | Completed with difficulty | Not completed | Not attempted. List the findings each task surfaced. See references/task-walkthroughs.md.",
+
   "criteriaResults": [
     { "sc": "1.2.1", "result": "N/A", "note": "No audio or video on audited pages" },
     { "sc": "2.4.2", "result": "Pass", "note": "Every audited page has a unique, descriptive title" },

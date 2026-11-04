@@ -70,11 +70,15 @@ The practical difference: Code gives breadth (many pages, consistent structured 
 1. **Usability Heuristics** — Nielsen Norman Group's 10 heuristics (visibility of system status, error recovery, consistency & standards, etc.)
 2. **Accessibility** — WCAG 2.2 Level AA: perceivable, operable, understandable, robust. Each finding is labeled `WCAG 2.1 AA` (legal baseline), `WCAG 2.2 AA (new)`, or `Best practice`. Target size: below 24×24 CSS px fails 2.5.8; 24–43px is a best-practice finding (44px recommended).
 3. **Visual Design** — hierarchy, typography, spacing, consistency
-4. **Information Architecture** — navigation depth, findability, search
-5. **Content & Microcopy** — reading level, CTA clarity, error message quality
-6. **User Flows** — friction points, cognitive load, error recovery paths
+4. **Information Architecture** — findability and information scent (no fixed click-count rule), labels, search
+5. **Content & Microcopy** — reading level (6th–8th grade for patient-facing content), CTA clarity, error message quality
+6. **User Flows** — friction points, cognitive load, error recovery paths, judged by walking key tasks live
 7. **Mobile/Responsive** — touch target sizing, readability, mobile nav patterns
-8. **Healthcare-Specific** — trust signals, health literacy, regulatory UX (fair balance, ISI, compliance-driven considerations)
+8. **Healthcare-Specific** — ISI and fair balance, PI/IFU links, trust signals, health literacy (reading level plus PEMAT), consent and privacy UX, emergency guidance
+
+Every dimension has a reference file of concrete checks: `heuristics-checklist.md` (1), `accessibility-checklist.md` (2), `evaluation-criteria.md` (3–7), and `healthcare-checklist.md` (8).
+
+**Key-task walkthroughs (v1.5.4).** At audit setup, 2–3 key user tasks are agreed (e.g. "Book a new-patient appointment: homepage → confirmation") and recorded in `audit-meta.json` as `keyTasks`. Each one is performed live in the browser, including deliberate errors: empty submit, invalid input, Back and refresh mid-flow, keyboard-only, and phone width. This is where the interaction-dependent problems a static capture can't see show up (forms that clear themselves, Back losing your place, errors that aren't announced). Walkthrough findings default to `Observed live`, with the steps in Evidence. The Word report lists each task, its result, and the findings it surfaced in Appendix A. See `references/task-walkthroughs.md`, including its safety rule: never complete a real booking, payment, or message without a test account.
 
 Not every audit necessarily touches all 8 — a non-healthcare client might skip dimension 8, or a scoped engagement might cover a subset. Each finding within a dimension gets the same structure regardless of which dimension it came from (see below), so the dimensions differ in *what* they're looking for, not in how findings get documented or scored.
 
@@ -164,7 +168,7 @@ Scores are only comparable between audits of the same scope: same dimensions, sa
 `scripts/docx-report-template.js` builds a fully-formatted, branded Word document directly from `findings.csv` — no manual re-entry of finding data.
 
 **Two inputs, different jobs.**
-`findings.csv` carries everything about the findings themselves (ID, Dimension, Severity, Scope, Reference, Location, Observation, Impact, Recommendation, At a Glance, Priority Score, and — from v1.5 — Evidence, Verification, Instances) — the same file already produced elsewhere in the skill. `audit-meta.json` carries the handful of things a CSV structurally can't hold: site name, prepared-by, date, pages audited, the executive summary narrative, and the roadmap phases. Copy `assets/audit-meta.example.json` and fill in the ~7 fields; everything else is derived.
+`findings.csv` carries everything about the findings themselves (ID, Dimension, Severity, Scope, Reference, Location, Observation, Impact, Recommendation, At a Glance, Priority Score, and — from v1.5 — Evidence, Verification, Instances) — the same file already produced elsewhere in the skill. `audit-meta.json` carries the handful of things a CSV structurally can't hold: site name, prepared-by, date, pages audited, evaluated dimensions, key tasks, compliance baseline, the executive summary narrative, and the roadmap phases. Copy `assets/audit-meta.example.json` and fill in the ~7 fields; everything else is derived.
 
 ```bash
 node scripts/docx-report-template.js findings.csv audit-meta.json output.docx
@@ -218,6 +222,9 @@ references/
   heuristics-checklist.md           NN/g 10 heuristics, detailed criteria
   accessibility-checklist.md        WCAG 2.2 AA checklist: every A/AA criterion tagged, target-size rules, manual-verification list
   regulatory-context.md             Which baseline applies to a client (HHS Section 504 etc.); complianceBaseline
+  evaluation-criteria.md            Concrete checks for dimensions 3-7 (visual, IA, content, flows, mobile)
+  healthcare-checklist.md           Dimension 8: ISI/fair balance, PI/IFU, trust signals, health literacy (PEMAT), privacy UX
+  task-walkthroughs.md              How to define and walk key tasks live, deliberate-error script, keyTasks format
 assets/
   audit-report-template.md          Full report template
   executive-summary-template.md     One-page stakeholder summary template
