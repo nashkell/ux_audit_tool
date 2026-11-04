@@ -150,6 +150,15 @@ priority = (severity x 3) + (userReach x 2) + (businessImpact x 2) + (easeOfFix 
 
 Scope can *inform* the `userReach` rating (Site-wide findings usually reach more users) but the two aren't forced to match — a low-traffic page can still carry high business impact at Page-level scope, so `userReach` gets rated on actual reach, not auto-derived from Scope.
 
+**Stored inputs (v1.5.3).** Record the three ratings in `findings.csv` as `UserReach`, `BusinessImpact`, `EaseOfFix` (1–5; ease 5 = easiest). Severity maps Critical 4 / Major 3 / Minor 2 / Cosmetic 1. The Word builder computes the score itself and shows each finding's inputs in the appendix (`35 (S4 R5 I4 E5)`), so the ranking can be checked. If the inputs are missing, it uses the `Priority Score` column as given. If both are present and disagree, it warns and uses the computed value.
+
+**Evaluated dimensions and comparability (v1.5.3).** `audit-meta.json` lists `dimensionsEvaluated`.
+- Every listed dimension counts toward the overall score, at 50/50 if it has no findings. Previously a clean dimension simply vanished, so a site scored *worse* for having one fewer problem area evaluated.
+- Unlisted dimensions show as "Not evaluated" and are left out of the average.
+- Without the field, the builder falls back to the old behavior and warns.
+
+Scores are only comparable between audits of the same scope: same dimensions, same pages/flows. The consolidation rule keeps them from scaling with page count.
+
 ## Word (.docx) Generation Pipeline
 
 `scripts/docx-report-template.js` builds a fully-formatted, branded Word document directly from `findings.csv` — no manual re-entry of finding data.
@@ -184,9 +193,9 @@ A blank Standard is filled in from the cited criteria. A CSV without a Standard 
 
 **What's derived automatically, rather than hand-calculated:**
 - **Dimension scores** — findings grouped by Dimension, Severity x Scope deduction looked up and summed per group, subtracted from 50.
-- **Overall Site Health %** — sum of dimension scores over their combined ceiling, converted to a percentage and banded into a rating (Excellent/Good/Needs Improvement/Poor/Critical).
+- **Overall Site Health %** — sum of evaluated dimension scores over their combined ceiling (an evaluated dimension with no findings counts as 50/50; "Not evaluated" dimensions are excluded), converted to a percentage and banded into a rating (Excellent/Good/Needs Improvement/Poor/Critical).
 - **Severity counts** — a tally across all findings.
-- **Top 5 Priorities** — findings sorted by Priority Score descending, using each one's At a Glance line as the summary text.
+- **Top 5 Priorities** — findings sorted by Priority Score descending (computed from the stored inputs when present), using each one's At a Glance line as the summary text.
 - **Appendix scoring table** — every finding's ID, Severity, Scope, and looked-up deduction, so a reviewer can check the math line by line.
 
 Dimensions render in a canonical order matching the 8 dimensions above, regardless of row order in the CSV.
