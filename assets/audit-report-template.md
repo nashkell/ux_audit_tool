@@ -146,6 +146,12 @@
 - WCAG 2.2 Level AA (findings labeled where they also fail the WCAG 2.1 AA legal baseline)
 - Healthcare UX Best Practices
 
+**Key tasks walked through** (performed live, including empty/invalid input, Back, and refresh mid-flow):
+
+| Task | Start → success | Result | Findings |
+|------|-----------------|--------|----------|
+| [Task in the user's words] | [Start] → [Success point] | [Completed / Completed with difficulty / Not completed / Not attempted] | [IDs] |
+
 ### C. Scoring Calculations
 [Dimension score breakdowns — show deduction per finding using the Severity × Scope table in SKILL.md, not a flat per-severity deduction]
 

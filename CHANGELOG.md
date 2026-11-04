@@ -2,6 +2,42 @@
 
 All notable changes to this skill are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.5.4] - 2026-11-04
+
+Phase 5 of the v1.5 plan: task walkthroughs and the missing reference files. Interaction problems that a static capture can't see are now part of every audit, and every dimension has concrete criteria.
+
+### Added
+- **Audit Setup** section in SKILL.md: settle pages, `dimensionsEvaluated`, 2–3 **key tasks**, and the **compliance baseline** with the user before reviewing. The compliance-baseline question addresses the earlier gap where nothing prompted the auditor for it. If the client hasn't confirmed, record "Not confirmed — client to advise".
+- **Task walkthroughs.** Each key task is performed live, the obvious way first, then with deliberate errors (empty submit, invalid input, Back and refresh mid-flow), keyboard-only, and at phone width. Walkthrough findings default to `Observed live`, with the steps in Evidence. Never complete an action with real-world effects without a test account.
+- `references/task-walkthroughs.md`: defining tasks, the deliberate-error script, what to look for, recording findings, tools for Cowork / Claude Code / chat (including blocking non-GET requests so nothing is sent), and the safety rule.
+- `references/evaluation-criteria.md`: concrete checks for Visual Design, Information Architecture, Content & Microcopy, User Flows, and Mobile/Responsive, with a table of contents.
+- `references/healthcare-checklist.md`: ISI and fair balance (visible, persistent where required, comparable prominence), PI/IFU links, trust signals (credentials, review dates, sources), health literacy against PEMAT understandability and actionability as well as reading level, consent/privacy banner clarity and health information in forms (UX only, no legal conclusions), emergency guidance.
+- **`keyTasks` in `audit-meta.json`** (`task`, `start`, `success`, `result`, `findings`, `notes`). The Word builder prints a "Key tasks walked through" table in Appendix A. It warns when `keyTasks` is missing or not an array, a result isn't one of `Completed | Completed with difficulty | Not completed | Not attempted`, a listed finding isn't in the CSV, a task has no description, or a task that wasn't completed cleanly lists no findings.
+- The example metadata has three key tasks linked to the example findings; the report template has a key-tasks table.
+
+### Changed
+- SKILL.md Audit Dimensions starts with a table linking every dimension to its reference file (one level deep). Each dimension section links its reference.
+- **Information Architecture: the fixed click-count rule is removed.** Findability is now "can users find key content, and does each step give a clear scent?"
+- **Reading level: 6th–8th grade is the single target** for patient-facing content. Content & Microcopy said "8th grade"; it now matches Healthcare-Specific.
+- Healthcare-Specific bullets in SKILL.md and README updated to match the checklist.
+- README: dimensions, a key-task walkthroughs section, and the repo structure.
+
+### Back-compat
+- Metadata without `keyTasks` builds with one warning and no Appendix A task table.
+
+### Verified
+- **Live walkthrough on a real site** (pivotpump.com, task "As a patient, ask how to get Pivot", homepage → Get Pivot chooser → Patient Contact Form). Every non-GET request was blocked; nothing was submitted. It produced 5 interaction findings, all `Observed live` with steps in Evidence, including:
+  - empty submit flags only First Name in a brief browser tooltip, with Last Name, Email and Message unmarked and no persistent error text;
+  - form fields show no focus change except the caret;
+  - the Phone field accepts "not a number";
+  - the main Get Pivot button adds a chooser screen;
+  - no privacy note, response time, or urgent-help notice on a patient health form.
+  
+  The findings stay out of the repo (no real client page in evals). Built into a test report: the Appendix A task table renders, checked visually (Quick Look).
+- keyTasks edge cases (bare string, unknown result, unknown finding ID, difficulty with no findings, missing task, non-array, missing field) each give the expected warning.
+- CarePath-equivalent CSV still 87.5%, Top 5 unchanged; the example still builds with only the intended HC-003 Inferred warning.
+- The "8th grade" grep finds only the 6th–8th target, and the click-rule grep finds nothing outside the improvement plan.
+
 ## [1.5.3] - 2026-11-04
 
 Phase 4 of the v1.5 plan: scoring correctness. Scores mean the same thing regardless of how big the audit was. The Severity × Scope deduction values are unchanged.

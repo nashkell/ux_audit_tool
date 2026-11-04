@@ -75,12 +75,41 @@ Request from user:
 
 ---
 
+## Audit Setup
+
+Before reviewing anything, settle these with the user (ask if they haven't said) and record them in `audit-meta.json`:
+
+1. **Pages and flows** to audit → `pagesAudited`.
+2. **Dimensions** to evaluate → `dimensionsEvaluated` (see Overall Health).
+3. **Key tasks**: 2–3 tasks the site exists for, each with a start point and a success point (e.g. "Book a new-patient appointment: homepage → confirmation screen") → `keyTasks`.
+4. **Compliance baseline**: which accessibility standard the client is held to, e.g. HHS Section 504 → `complianceBaseline`. If the client hasn't confirmed, record `"Not confirmed — client to advise"` rather than guessing (see `references/regulatory-context.md`).
+
+### Task walkthroughs
+
+Perform every key task live in the browser, not from captured data, following `references/task-walkthroughs.md`:
+- Do it the obvious way first, then with deliberate errors: empty submit, invalid input, Back mid-flow, refresh mid-flow.
+- Repeat the key steps keyboard-only and at phone width.
+- Findings from a walkthrough default to **Verification = Observed live**, with the steps you took in Evidence.
+- Never complete an action with real-world effects (booking a real slot, paying, sending a message to staff) without a test account or staging site. Stop before the final step and mark anything after it Inferred.
+
+Record each task's `result` (`Completed`, `Completed with difficulty`, `Not completed`, `Not attempted`) and the findings it surfaced in `keyTasks`.
+
+---
+
 ## Audit Dimensions
 
-Evaluate all applicable dimensions. Reference detailed criteria in `references/` files.
+Evaluate all applicable dimensions. Every dimension has a reference file with concrete checks:
+
+| Dimension | Reference |
+|-----------|-----------|
+| 1. Usability Heuristics | `references/heuristics-checklist.md` |
+| 2. Accessibility | `references/accessibility-checklist.md`, `references/regulatory-context.md` |
+| 3–7. Visual Design, Information Architecture, Content & Microcopy, User Flows, Mobile/Responsive | `references/evaluation-criteria.md` |
+| 8. Healthcare-Specific | `references/healthcare-checklist.md` |
+| Key-task walkthroughs (feeds 1, 2, 6) | `references/task-walkthroughs.md` |
 
 ### 1. Usability Heuristics (NN/g)
-See `references/heuristics-checklist.md`
+See `references/heuristics-checklist.md`. Heuristics 1, 3, 5, 6, and 9 mostly show up during task walkthroughs.
 
 | # | Heuristic | Key Checks |
 |---|-----------|------------|
@@ -106,6 +135,7 @@ See `references/accessibility-checklist.md` (every A/AA criterion, tagged) and `
 Audit to WCAG 2.2 AA, and label every accessibility finding with its **Standard** so the client can see what fails the WCAG 2.1 AA legal baseline. Items in the checklist's "Needs manual verification" section (alt-text quality, focus-order sense, screen reader output, reflow at 400%) can't be settled from capture data alone.
 
 ### 3. Visual Design
+See `references/evaluation-criteria.md` § 3.
 - Hierarchy and focal points
 - Typography (16px+ body, 1.5 line-height)
 - Color usage and meaning
@@ -113,34 +143,41 @@ Audit to WCAG 2.2 AA, and label every accessibility finding with its **Standard*
 - Component consistency
 
 ### 4. Information Architecture
+See `references/evaluation-criteria.md` § 4.
 - Navigation depth and breadth
 - Label clarity
-- Findability (3-click rule)
+- Findability: can users find key content, and does each step give a clear scent? (No fixed click-count rule.)
 - Search effectiveness
 
 ### 5. Content & Microcopy
-- Reading level (target 8th grade)
+See `references/evaluation-criteria.md` § 5.
+- Reading level (target 6th–8th grade for patient-facing content)
 - CTA clarity (action verbs)
 - Error message helpfulness
 - Form labels and help text
 
 ### 6. User Flows
+See `references/evaluation-criteria.md` § 6. Evaluate by walking the key tasks live (see Audit Setup).
 - Task step count
 - Friction points
 - Cognitive load
 - Error recovery paths
 
 ### 7. Mobile/Responsive
+See `references/evaluation-criteria.md` § 7.
 - Touch targets: below 24×24 CSS px fails WCAG 2.5.8 (AA); 24–43px is a best-practice finding (44px recommended, usually Minor)
 - Content prioritization
 - Navigation patterns
 - Text readability without zoom
 
 ### 8. Healthcare-Specific (when applicable)
-- Trust signals and credentials
-- Health literacy (6th-8th grade)
-- Regulatory UX (fair balance, ISI)
-- Emotional appropriateness
+See `references/healthcare-checklist.md`. UX observations only; no legal or regulatory conclusions.
+- ISI and fair balance: visible, persistent where required, risk as prominent as benefit
+- Prescribing information / IFU links
+- Trust signals: credentials, review dates, sources
+- Health literacy: 6th–8th grade, plus PEMAT understandability and actionability
+- Consent/privacy banner clarity and handling of health information in forms
+- Emergency guidance and emotional appropriateness
 
 ---
 
@@ -314,7 +351,7 @@ For client-facing delivery, `scripts/docx-report-template.js` builds a branded W
 
 Workflow:
 1. Have `findings.csv` ready (as already produced by this skill's Finding Documentation format).
-2. Copy `assets/audit-meta.example.json` to `audit-meta.json` and fill in the handful of things a CSV can't hold: site name, prepared-by, date, pages audited, **`dimensionsEvaluated`**, the executive summary narrative, and the roadmap phases/arc.
+2. Copy `assets/audit-meta.example.json` to `audit-meta.json` and fill in the handful of things a CSV can't hold: site name, prepared-by, date, pages audited, **`dimensionsEvaluated`**, **`keyTasks`**, `complianceBaseline`, the executive summary narrative, and the roadmap phases/arc.
 3. Run:
    ```bash
    node scripts/docx-report-template.js findings.csv audit-meta.json output.docx
@@ -339,4 +376,4 @@ The script's brand palette (navy/purple/lime/teal, Inter typeface) is approximat
 
 ---
 
-*Skill Version: 1.5.3 — see `CHANGELOG.md` for version history.*
+*Skill Version: 1.5.4 — see `CHANGELOG.md` for version history.*
