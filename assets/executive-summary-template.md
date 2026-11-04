@@ -23,7 +23,11 @@
 | Content & Microcopy | [XX]/50 | [Rating] |
 | User Flows | [XX]/50 | [Rating] |
 | Mobile/Responsive | [XX]/50 | [Rating] |
+| Healthcare-Specific | [XX]/50 or Not evaluated | [Rating] |
 | **Overall** | **[XX]%** | **[Rating]** |
+
+*List every dimension you evaluated in `audit-meta.json` `dimensionsEvaluated`. An evaluated dimension with no findings scores 50/50; mark any dimension you didn't evaluate "Not evaluated" and leave it out of the overall %. Scores are only comparable between audits of the same scope (SKILL.md → Audit Breadth and Comparability).*
+
 
 ### Issues by Severity
 

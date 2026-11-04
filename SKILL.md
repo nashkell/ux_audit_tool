@@ -246,18 +246,20 @@ minimum = 0
 
 Example: three Critical, Element-level findings and one Critical, Site-wide finding are not scored the same (3 × -3 = -9 vs. -8) even though all four are "Critical" — which is the intended effect. This replaces the old flat `critical×10 / major×6 / minor×3 / cosmetic×1` formula.
 
-### Priority Score (1-40)
+### Priority Score (8-37)
 
 ```
 priority = (severity×3) + (userReach×2) + (businessImpact×2) + (easeOfFix×1)
 ```
-Each factor rated 1-5. Scope can inform the `userReach` rating (site-wide findings generally reach more users) but the two aren't identical — a low-traffic page can still be page-level scope with high business impact, and vice versa. Rate `userReach` on actual reach, not just scope category.
+Severity maps Critical=4, Major=3, Minor=2, Cosmetic=1. The other factors are rated 1-5 (`easeOfFix` 5 = easiest). Record the three ratings in `findings.csv` as `UserReach`, `BusinessImpact`, `EaseOfFix`; the Word builder computes the score from them and shows the inputs in the appendix. If they're missing it uses the `Priority Score` column as given; if both exist and disagree, it warns and uses the computed value. Scope can inform the `userReach` rating (site-wide findings generally reach more users) but the two aren't identical — a low-traffic page can still be page-level scope with high business impact, and vice versa. Rate `userReach` on actual reach, not just scope category.
 
 ### Overall Health
 
 ```
-health% = (sum of dimension scores) / (50 × dimensions) × 100
+health% = (sum of evaluated dimension scores) / (50 × evaluated dimensions) × 100
 ```
+
+List the dimensions you actually evaluated in `audit-meta.json` as `dimensionsEvaluated`. Every listed dimension counts, **scoring 50/50 if it has no findings**. Dimensions you didn't evaluate appear as "Not evaluated" and are left out of the average. Without `dimensionsEvaluated`, the builder only scores dimensions that have findings, so a clean dimension silently disappears. It warns when this happens.
 
 | Range | Rating |
 |-------|--------|
@@ -266,6 +268,15 @@ health% = (sum of dimension scores) / (50 × dimensions) × 100
 | 60-74% | Needs Improvement |
 | 40-59% | Poor |
 | <40% | Critical |
+
+### Audit Breadth and Comparability
+
+Scores are only comparable between audits of the same scope.
+- **The consolidation rule keeps scores from scaling with page count.** Without it, auditing 20 pages would file the same template problem 20 times and push scores down just for being thorough. With it, that problem is one Site-wide finding whether 3 pages or 30 were reviewed.
+- **Different dimension sets aren't comparable.** A 4-dimension audit and an 8-dimension audit of the same site can land at different percentages, because each evaluated dimension carries equal weight. So can an audit that skips the weakest dimension.
+- **Different page or flow sets aren't comparable.** Adding the checkout flow can surface findings a homepage-only audit couldn't.
+
+When comparing over time (e.g. a re-audit), keep `dimensionsEvaluated` and the pages audited the same, or say plainly in the narrative that the scope changed.
 
 ---
 
@@ -303,12 +314,12 @@ For client-facing delivery, `scripts/docx-report-template.js` builds a branded W
 
 Workflow:
 1. Have `findings.csv` ready (as already produced by this skill's Finding Documentation format).
-2. Copy `assets/audit-meta.example.json` to `audit-meta.json` and fill in the handful of things a CSV can't hold: site name, prepared-by, date, pages audited, the executive summary narrative, and the roadmap phases/arc.
+2. Copy `assets/audit-meta.example.json` to `audit-meta.json` and fill in the handful of things a CSV can't hold: site name, prepared-by, date, pages audited, **`dimensionsEvaluated`**, the executive summary narrative, and the roadmap phases/arc.
 3. Run:
    ```bash
    node scripts/docx-report-template.js findings.csv audit-meta.json output.docx
    ```
-4. Dimension scores, severity counts, top priorities (ranked by Priority Score), and the appendix scoring table are all computed automatically from the CSV using the Severity × Scope deduction table — nothing to hand-calculate.
+4. Dimension scores, severity counts, top priorities (ranked by Priority Score, computed from `UserReach`/`BusinessImpact`/`EaseOfFix` when present), and the appendix scoring table are all computed automatically from the CSV using the Severity × Scope deduction table — nothing to hand-calculate.
 5. Render to PDF and inspect before sending to the client.
 
 CSV column names are matched case- and punctuation-insensitively (`At a Glance`, `at_a_glance`, etc. all resolve), so minor header variations across exports are fine. See `assets/findings.example.csv` for the expected format.
@@ -328,4 +339,4 @@ The script's brand palette (navy/purple/lime/teal, Inter typeface) is approximat
 
 ---
 
-*Skill Version: 1.5.2 — see `CHANGELOG.md` for version history.*
+*Skill Version: 1.5.3 — see `CHANGELOG.md` for version history.*

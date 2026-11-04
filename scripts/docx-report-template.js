@@ -212,6 +212,9 @@ const EVIDENCE_COLUMNS_PRESENT = {};
 const STANDARD_KEYS = ["Standard", "Conformance", "Conformance Standard"];
 const REFERENCE_KEYS = ["Standard/Heuristic", "Heuristic", "Reference", "WCAG"];
 const SC_KEYS = ["WCAG SC", "SC", "Success Criterion", "Success Criteria"];
+const REACH_KEYS = ["UserReach", "User Reach", "Reach"];
+const IMPACT_KEYS = ["BusinessImpact", "Business Impact", "Impact Score"];
+const EASE_KEYS = ["EaseOfFix", "Ease of Fix", "Ease"];
 
 function loadFindings(csvPath) {
   const raw = fs.readFileSync(csvPath, "utf-8");
@@ -256,7 +259,12 @@ function loadFindings(csvPath) {
       impact: pick(r, ["Impact"]),
       recommendation: pick(r, ["Recommendation"]),
       glance: pick(r, ["At a Glance", "At-a-Glance", "AtAGlance"]),
-      priorityScore: parseFloat(pick(r, ["Priority Score", "Priority"])) || 0,
+      _priorityColumn: pick(r, ["Priority Score", "Priority"]),
+      _reach: pick(r, REACH_KEYS),
+      _impact: pick(r, IMPACT_KEYS),
+      _ease: pick(r, EASE_KEYS),
+      priorityScore: 0,
+      priorityInputs: null,
       evidence: pick(r, EVIDENCE_KEYS),
       verification: normVerification(pick(r, VERIFICATION_KEYS)),
       instances: pick(r, INSTANCES_KEYS)
@@ -264,7 +272,61 @@ function loadFindings(csvPath) {
   });
 
   checkStandards(findings, standardColumn, csvPath);
+  resolvePriorities(findings, rows, csvPath);
   return findings;
+}
+
+// ============================================================================
+// Priority Score (see SKILL.md Scoring)
+//   priority = severity×3 + userReach×2 + businessImpact×2 + easeOfFix×1
+//   severity: Critical=4, Major=3, Minor=2, Cosmetic=1; other inputs 1-5
+//   (easeOfFix 5 = easiest). Computed when all three inputs are present and
+//   valid; otherwise falls back to the CSV's Priority Score column.
+// ============================================================================
+
+const SEVERITY_WEIGHT = { Critical: 4, Major: 3, Minor: 2, Cosmetic: 1 };
+
+function computePriority(severity, reach, impact, ease) {
+  return SEVERITY_WEIGHT[severity] * 3 + reach * 2 + impact * 2 + ease * 1;
+}
+
+function resolvePriorities(findings, rows, csvPath) {
+  const hasInputs = hasColumn(rows, REACH_KEYS) || hasColumn(rows, IMPACT_KEYS) || hasColumn(rows, EASE_KEYS);
+  if (!hasInputs) {
+    console.warn(`Warning: ${csvPath} has no UserReach/BusinessImpact/EaseOfFix columns (pre-v1.5.3 format). Using the Priority Score column as given; it can't be checked.`);
+  }
+  const fellBack = [], missing = [];
+  findings.forEach(f => {
+    const given = f._priorityColumn === "" ? null : parseFloat(f._priorityColumn);
+    const raw = [f._reach, f._impact, f._ease];
+    const anyInput = raw.some(v => v !== "");
+    const nums = raw.map(v => Number(v));
+    const valid = raw.every(v => v !== "") && nums.every(n => Number.isInteger(n) && n >= 1 && n <= 5) && SEVERITY_WEIGHT[f.severity];
+
+    if (valid) {
+      const [reach, impact, ease] = nums;
+      f.priorityScore = computePriority(f.severity, reach, impact, ease);
+      f.priorityInputs = { severity: SEVERITY_WEIGHT[f.severity], reach, impact, ease };
+      if (given !== null && !Number.isNaN(given) && given !== f.priorityScore) {
+        console.warn(`Warning: ${f.id}: Priority Score column says ${f._priorityColumn} but the inputs compute ${f.priorityScore} (${f.severity}=${SEVERITY_WEIGHT[f.severity]}×3 + reach ${reach}×2 + impact ${impact}×2 + ease ${ease}) — using ${f.priorityScore}.`);
+      }
+      return;
+    }
+    if (anyInput) {
+      const why = !SEVERITY_WEIGHT[f.severity]
+        ? `Severity "${f.severity}" isn't Critical/Major/Minor/Cosmetic`
+        : `UserReach/BusinessImpact/EaseOfFix must all be whole numbers 1-5 (got ${raw.map(v => v === "" ? "blank" : v).join("/")})`;
+      console.warn(`Warning: ${f.id}: ${why} — falling back to the Priority Score column.`);
+    }
+    if (given !== null && !Number.isNaN(given)) {
+      f.priorityScore = given;
+      if (hasInputs) fellBack.push(f.id);
+    } else {
+      missing.push(f.id);
+    }
+  });
+  if (fellBack.length) console.warn(`Warning: Priority Score taken from the CSV column (no valid inputs) for ${fellBack.join(", ")}.`);
+  if (missing.length) console.warn(`Warning: no priority for ${missing.join(", ")} — treated as 0 and ranked last in Top Priorities.`);
 }
 
 // Validate cited criteria and the Standard label; fill a blank Standard from
@@ -397,20 +459,50 @@ function loadMeta(metaPath) {
 // Derive report data (dimension scores, severity counts, priorities, scoring rows)
 // ============================================================================
 
+// Map a dimension name loosely onto the canonical spelling ("mobile responsive"
+// → "Mobile/Responsive"); unknown names are kept as written.
+function canonicalDimension(name) {
+  const k = normKey(name || "");
+  return DIMENSION_ORDER.find(d => normKey(d) === k) || String(name || "").trim();
+}
+
+// Which dimensions count toward the score. With meta.dimensionsEvaluated, every
+// listed dimension is scored (50/50 if it has no findings) and the rest are
+// "Not evaluated". Without it, fall back to "dimensions that have findings".
+function resolveDimensions(byDim, meta) {
+  const ordered = names => [
+    ...DIMENSION_ORDER.filter(d => names.includes(d)),
+    ...names.filter(d => !DIMENSION_ORDER.includes(d)).sort()
+  ];
+  if (!Array.isArray(meta.dimensionsEvaluated)) {
+    if (meta.dimensionsEvaluated !== undefined && meta.dimensionsEvaluated !== null) {
+      console.warn("Warning: audit-meta.json dimensionsEvaluated should be an array of dimension names — ignored.");
+    }
+    console.warn("Warning: audit-meta.json has no dimensionsEvaluated — scoring only the dimensions that have findings. A dimension that was evaluated and came up clean won't appear or count toward the overall score. List the dimensions you evaluated to fix this.");
+    return { evaluated: ordered(Object.keys(byDim)), notEvaluated: null };
+  }
+  const evaluated = [...new Set(meta.dimensionsEvaluated.map(canonicalDimension).filter(Boolean))];
+  evaluated.filter(d => !DIMENSION_ORDER.includes(d)).forEach(d =>
+    console.warn(`Warning: dimensionsEvaluated lists "${d}", which isn't one of the 8 standard dimensions — scored as a custom dimension.`));
+  Object.keys(byDim).filter(d => !evaluated.includes(d)).forEach(d => {
+    console.warn(`Warning: ${byDim[d].map(f => f.id).join(", ")} ${byDim[d].length === 1 ? "is" : "are"} in "${d}", which isn't in dimensionsEvaluated — scoring it as evaluated. Add it to dimensionsEvaluated (or fix the Dimension) to silence this.`);
+    evaluated.push(d);
+  });
+  return { evaluated: ordered(evaluated), notEvaluated: DIMENSION_ORDER.filter(d => !evaluated.includes(d)) };
+}
+
 function buildAuditData(findings, meta) {
   const byDim = {};
   findings.forEach(f => {
+    f.dimension = canonicalDimension(f.dimension);
     if (!byDim[f.dimension]) byDim[f.dimension] = [];
     byDim[f.dimension].push(f);
   });
 
-  const orderedDimNames = [
-    ...DIMENSION_ORDER.filter(d => byDim[d]),
-    ...Object.keys(byDim).filter(d => !DIMENSION_ORDER.includes(d)).sort()
-  ];
+  const { evaluated: orderedDimNames, notEvaluated } = resolveDimensions(byDim, meta);
 
   const dimensions = orderedDimNames.map(name => {
-    const dimFindings = byDim[name];
+    const dimFindings = byDim[name] || [];
     const totalDeduction = dimFindings.reduce((sum, f) => {
       const table = SEVERITY_SCOPE_TABLE[f.severity];
       const d = table && table[f.scope] !== undefined ? table[f.scope] : 0;
@@ -423,7 +515,10 @@ function buildAuditData(findings, meta) {
     return { name, score: `${fmtNum(score)} / 50`, rating: ratingFor((score / 50) * 100), findings: dimFindings, _scoreNum: score };
   });
 
-  const dimensionScores = dimensions.map(d => ({ name: d.name, score: d.score, rating: d.rating }));
+  const dimensionScores = [
+    ...dimensions.map(d => ({ name: d.name, score: d.score, rating: d.rating })),
+    ...(notEvaluated || []).map(name => ({ name, score: "\u2014", rating: "Not evaluated" }))
+  ];
 
   const overallPct = dimensions.length
     ? (dimensions.reduce((s, d) => s + d._scoreNum, 0) / (50 * dimensions.length)) * 100
@@ -440,7 +535,9 @@ function buildAuditData(findings, meta) {
   const scoringRows = findings.map(f => {
     const table = SEVERITY_SCOPE_TABLE[f.severity];
     const d = table && table[f.scope] !== undefined ? table[f.scope] : 0;
-    return { id: f.id, severity: f.severity, scope: f.scope, deduction: fmtNum(d) };
+    const p = f.priorityInputs;
+    const priority = p ? `${fmtNum(f.priorityScore)} (S${p.severity} R${p.reach} I${p.impact} E${p.ease})` : (f.priorityScore ? `${fmtNum(f.priorityScore)} (given)` : "\u2014");
+    return { id: f.id, severity: f.severity, scope: f.scope, deduction: fmtNum(d), priority };
   });
 
   return {
@@ -458,6 +555,8 @@ function buildAuditData(findings, meta) {
     roadmapArc: meta.roadmapArc,
     roadmapPhases: meta.roadmapPhases,
     dimensions: dimensions.map(d => ({ name: d.name, score: d.score, findings: d.findings })),
+    notEvaluated,
+    dimensionCount: dimensions.length,
     methodology: meta.methodology,
     complianceBaseline: meta.complianceBaseline || null,
     conformance: buildConformance(findings, meta),
@@ -738,6 +837,7 @@ function build(data) {
   const findingsChildren = [new Paragraph({ children: [new PageBreak()] }), heading("Detailed Findings", HeadingLevel.HEADING_1)];
   data.dimensions.forEach((dim, i) => {
     findingsChildren.push(heading(`${dim.name} — Score: ${dim.score}`, HeadingLevel.HEADING_2));
+    if (!dim.findings.length) findingsChildren.push(body("Evaluated \u2014 no findings in this dimension."));
     dim.findings.forEach(f => findingsChildren.push(...findingBlock(f)));
     if (i < data.dimensions.length - 1) findingsChildren.push(divider());
   });
@@ -755,11 +855,13 @@ function build(data) {
     ...(data.complianceBaseline ? [spacer(80), labelValue("Compliance baseline", data.complianceBaseline)] : []),
     heading("B. Scoring Calculations", HeadingLevel.HEADING_2),
     body("Dimension scores use the Severity \u00D7 Scope deduction table, not a flat per-severity deduction — findings with the same Severity but different Scope are weighted differently."),
+    body(`Overall health averages the ${data.dimensionCount} evaluated dimension${data.dimensionCount === 1 ? "" : "s"}; an evaluated dimension with no findings scores 50 / 50.${data.notEvaluated && data.notEvaluated.length ? ` Not evaluated, and left out of the average: ${data.notEvaluated.join(", ")}.` : ""} Scores are comparable only between audits of the same scope.`),
+    body("Priority = Severity\u00D73 + User reach\u00D72 + Business impact\u00D72 + Ease of fix\u00D71 (S: Critical 4 \u2026 Cosmetic 1; R, I, E rated 1\u20135, E5 = easiest)."),
     spacer(200),
     simpleTable(
-      ["Finding", "Severity", "Scope", "Deduction"],
-      scoringRows.map(r => [r.id, r.severity, r.scope, r.deduction]),
-      [2500, 2000, 2400, 1600]
+      ["Finding", "Severity", "Scope", "Deduction", "Priority"],
+      scoringRows.map(r => [r.id, r.severity, r.scope, r.deduction, r.priority]),
+      [1500, 1500, 1800, 1300, 3260]
     ),
     spacer(280),
     heading("C. Severity \u00D7 Scope Deduction Table", HeadingLevel.HEADING_2),

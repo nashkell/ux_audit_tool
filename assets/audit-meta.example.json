@@ -6,6 +6,9 @@
   "date": "July 8, 2026",
   "pagesAudited": "Homepage, Appointment Booking, Password Reset, Insurance FAQ, Contact",
 
+  "dimensionsEvaluated": ["Usability Heuristics", "Accessibility", "Visual Design", "Information Architecture", "Content & Microcopy", "User Flows", "Mobile/Responsive", "Healthcare-Specific"],
+  "_dimensionsEvaluated_comment": "Only the dimensions you actually evaluated. Each one scores 50/50 if it has no findings; any of the 8 not listed shows as 'Not evaluated' and is left out of the overall score. Keep this the same across re-audits you want to compare.",
+
   "complianceBaseline": "WCAG 2.1 AA — HHS Section 504 (recipient, confirmed by client)",
   "_complianceBaseline_comment": "Which accessibility standard this client is held to. Confirm with the client at audit setup — see references/regulatory-context.md. Use 'Not confirmed — client to advise' rather than guessing.",
 

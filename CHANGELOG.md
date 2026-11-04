@@ -2,6 +2,52 @@
 
 All notable changes to this skill are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.5.3] - 2026-11-04
+
+Phase 4 of the v1.5 plan: scoring correctness. Scores mean the same thing regardless of how big the audit was. The Severity × Scope deduction values are unchanged.
+
+### Fixed
+- **Clean dimensions no longer disappear.**
+  - New `audit-meta.json` field `dimensionsEvaluated`. Every listed dimension appears in the scores and the overall average, scoring 50/50 if it has no findings ("Evaluated — no findings in this dimension." in Detailed Findings).
+  - Any of the 8 standard dimensions not listed shows as "Not evaluated" in the At a Glance table and is left out of the average.
+  - Names match loosely (`"visual design"` → Visual Design). A finding in an unlisted dimension is scored as evaluated, with a warning.
+  - Without `dimensionsEvaluated`, the builder keeps the old behavior and warns.
+
+### Added
+- **Stored Priority Score inputs.** New CSV columns `UserReach`, `BusinessImpact`, `EaseOfFix` (whole numbers 1–5; ease 5 = easiest).
+  - The builder computes `priority = sev×3 + reach×2 + impact×2 + ease×1` (Critical 4, Major 3, Minor 2, Cosmetic 1).
+  - Missing or invalid inputs fall back to the `Priority Score` column, with a warning naming the bad values.
+  - When both are present and disagree, it warns and uses the computed value. A finding with no priority at all is warned and ranked last.
+- Appendix B shows each finding's priority and its inputs (`35 (S4 R5 I4 E5)`, or `(given)` when taken from the column).
+- Appendix B states how many dimensions were averaged and which were not evaluated.
+- **SKILL.md "Audit Breadth and Comparability"**:
+  - The consolidation rule keeps scores from scaling with page count.
+  - Audits with different dimension or page sets aren't directly comparable; keep scope fixed for re-audits.
+
+### Changed
+- SKILL.md Scoring: the Priority Score section documents the stored inputs, fallback and range (8–37; it said 1–40, which the formula can't produce). The Overall Health formula now counts evaluated dimensions. The Word workflow mentions `dimensionsEvaluated` and the inputs.
+- `assets/audit-meta.example.json` gains `dimensionsEvaluated` (all 8, with a comment). `assets/findings.example.csv` gains the three input columns.
+- The report and executive-summary templates list Healthcare-Specific, explain Not evaluated / 50/50, and label the total as an evaluated-dimensions %.
+- README scoring and Word-pipeline sections updated.
+
+### Back-compat
+- An old CSV without input columns builds with one warning and uses `Priority Score` as before. Old metadata without `dimensionsEvaluated` scores exactly as v1.5.2, with a warning.
+
+### Verified
+- CarePath-equivalent CSV:
+  - `dimensionsEvaluated` = the 4 sampled dimensions: **87.5%** exactly. 43 / 38.5 / 48.5 / 45; the other 4 shown as Not evaluated.
+  - Adding a fifth evaluated dimension with no findings (Visual Design): **90%**, Visual Design shown at 50 / 50.
+  - No `dimensionsEvaluated`: 87.5% with the fallback warning.
+- Computed priorities match hand calculation:
+  - ACC-001: 4×3+5×2+4×2+5 = 35
+  - MOB-001: 3×3+5×2+4×2+3 = 30
+  - ACC-003: 2×3+2×2+3×2+2 = 18
+  - CON-001: 2×3+1×2+2×2+3 = 15
+  - All 8 rows reproduce the original Priority Score column, so the Top 5 order is unchanged (ACC-001, UH-003, MOB-001, UH-001, ACC-002).
+- Planted disagreement (column 30 vs computed 22) is warned and 22 used. Planted EaseOfFix = 7 is warned and falls back to the column.
+- Example files: 97.5% across 8 evaluated dimensions, no warnings. `--strict` still exits 1 on an Inferred finding.
+- Rendered and inspected (Quick Look): At a Glance table with Not evaluated rows; Appendix B priority column and breadth note.
+
 ## [1.5.2] - 2026-11-03
 
 Phase 3 of the v1.5 plan: accessibility baseline. Audits now evaluate against **WCAG 2.2 AA**, and every accessibility finding is labeled to show whether it also fails the **WCAG 2.1 AA** legal baseline (decision D2).
