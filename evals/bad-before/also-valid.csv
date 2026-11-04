@@ -1,0 +1,4 @@
+ExpectedID,Page,Title,WCAG,Level,Keywords,Why
+valid-lang,all,Page language not set,3.1.1,A/AA,html-has-lang;lang attribute;language of page,"The before pages have no lang attribute on <html> (capture pageData.lang is null). A real 3.1.1 failure, but the annotations don't list it."
+valid-target-size,all,Targets smaller than 24x24 CSS px,2.5.8,A/AA,target-size;target size;24x24;24 x 24,"2.5.8 is new in WCAG 2.2; the BAD annotations predate it. axe measures it directly."
+valid-landmarks,all,No landmark regions,,best practice,landmark;region;landmark-one-main;main landmark,"No main or other landmarks. A best-practice issue (not an A/AA failure); BAD predates landmark roles."

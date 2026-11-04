@@ -2,6 +2,49 @@
 
 All notable changes to this skill are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.5.5] - 2026-11-04
+
+Phase 6 of the v1.5 plan: workflow checklist, validator, and evals. The QA gate is now code, and the skill's accuracy is measurable.
+
+### Added
+- **Progress checklist** at the top of SKILL.md: 9 steps from scope to rendered PDF, to copy into working notes for each audit.
+- **`scripts/validate-findings.js`**: checks `findings.csv` against `audit-meta.json` and exits 1 on any error. Each message names the finding and the fix (`UH-003: Scope "Sitewide" not allowed; write it as "Site-wide"`). Checks:
+  - allowed values (Severity, Scope, Dimension, Standard, Verification) and empty required fields;
+  - unique IDs and a prefix that matches the dimension (prefix table added to SKILL.md);
+  - At a Glance is one sentence and doesn't repeat the Observation (exact, contained, or 70%+ word overlap);
+  - no placeholders (`[Capitalized ...]` template text, "lorem", "TBD"/"TODO", the example file's instruction text);
+  - no Inferred findings;
+  - priority inputs 1–5 and consistent with Priority Score;
+  - WCAG criteria valid (not 4.1.1) and consistent with Standard; accessibility findings cite one;
+  - metadata: narrative and roadmap filled in, `dimensionsEvaluated` covers every finding, **`complianceBaseline` required when accessibility is in scope** (this closes the gap noted in Phase 3), `keyTasks` and `criteriaResults` consistent with the findings.
+  
+  Warnings (don't fail): Site-wide findings without an Instances list, possible duplicates, an unconfirmed baseline, a single key task.
+- SKILL.md **Validate** section: run it, fix, and repeat; generate deliverables only once it passes. The Word workflow's first step now includes it.
+- **`evals/`**:
+  - `carepath/`: the CarePath sample in full v1.5 form, with `expected-scores.json`.
+  - `bad-before/`: an answer key of 44 issues from the W3C BAD "before" annotations (Home, News, Tickets, Survey, plus the Template page's site-wide issues); `also-valid.csv` for real issues the key omits; `pages.json`; scored runs; `baseline.json` floors.
+  - `score.js`: recall, precision (lower bound), and duplicate rate against an answer key, with a `Matches` column for hand grading and `--verbose` for the match map; `--scores` checks a sample's scores; `--all` runs everything and fails on any regression below the floors.
+  - `automated-baseline.js`: turns `capture-site.js` output into an automation-only findings CSV.
+  - `README.md`: how to run the evals, score a full skill run blind, and add a real client page later (no real-client eval is included).
+- **`package-skill.sh`**: builds `dist/ux-audit.zip` for upload to Claude.ai / Cowork.
+
+### Changed
+- `docx-report-template.js` can be required as a module (exports its parsing and scoring functions; the CLI runs only when it's executed directly). The `docx` package loads lazily, so the validator works before `npm install`; the builder gives a clear error instead of a stack trace.
+- SKILL.md description rewritten in the third person ("Conducts…"), mentioning task walkthroughs, evidence, Severity × Scope, and the Word deliverable (803 characters).
+- Removed history wording from SKILL.md ("replaces the old flat formula", "pre-v1.5").
+- README: workflow diagram, validator, Evals section, repo structure, and packaging.
+
+### Verified
+- **Validator, planted errors:** 21 planted errors across the CSV and metadata, each caught with a specific message (bad Scope, lowercase Severity, empty Recommendation, duplicate ID, prefix mismatch, two-sentence At a Glance, At a Glance copying the Observation, "TBD", template placeholder, Inferred, EaseOfFix 7, Priority Score disagreeing with inputs, Standard not matching the criterion, instruction-text narrative and roadmap focus, empty timeframe, missing complianceBaseline, unknown task result, unknown finding in keyTasks, Pass conflicting with a finding, 4.1.1).
+- **Validator, clean sample:** `evals/carepath` passes with 0 warnings. The shipped example fails only on its intentional Inferred HC-003.
+- **Evals (`node evals/score.js --all`), baseline:**
+  - CarePath: 87.5%; 43 / 38.5 / 48.5 / 45; Top 5 ACC-001, UH-003, MOB-001, UH-001, ACC-002. PASS.
+  - W3C BAD before, automation-only run (axe-core 4.14.0 + capture keyboard checks, 12 findings): **recall 20.5%** (9/44; 24.3% of the 37 A/AA items), **precision 100%** (12/12; 8 match the key, 4 are also-valid: page language, target size, landmarks), **duplicate rate 0%**.
+  - The score.js checks of duplicate detection, unmatched findings, and the `Matches` column behave as documented on a planted run.
+  - A full skill run should be scored blind in a fresh session (see `evals/README.md`); none is recorded yet.
+- Builder output for the CarePath fixture is text-identical to v1.5.4 after the module refactor; the example renders unchanged (Quick Look).
+- The packaged zip, unpacked with no `node_modules`, runs the validator; the builder prints the install hint.
+
 ## [1.5.4] - 2026-11-04
 
 Phase 5 of the v1.5 plan: task walkthroughs and the missing reference files. Interaction problems that a static capture can't see are now part of every audit, and every dimension has concrete criteria.

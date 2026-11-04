@@ -1,0 +1,45 @@
+ExpectedID,Page,Title,WCAG,Level,Keywords
+home-02,home,Image without any text alternative,1.1.1,A/AA,teaser;missing alt;no alt;without alt;image-alt;alt attribute
+home-03,home,Link not visually distinct,1.4.8,AAA/advisory,heat wave;not visually distinct;resembles a heading;link-in-text-block
+home-04,home,Image with inadequate text alternative,1.1.1,A/AA,brain;braininjar;background image;title attribute;css background
+home-05,home,Link text is not descriptive,2.4.4;2.4.9,A/AA,read more;not descriptive
+home-06,home,Reading sequence not meaningful,1.3.1;1.3.2,A/AA,reading sequence;reading order;columns;running text
+home-07,home,Link with image has empty text alternative,2.4.4;2.4.9;4.1.2,A/AA,morearrow;more arrow;empty alt;image link;link-name;discernible text
+home-08,home,Decorative image without empty text alternative,1.1.1,A/AA,bullet;decorative
+home-09,home,List not marked up as such,1.3.1,A/AA,list;killer bees;onions
+home-10,home,Image with incorrect text alternative,1.1.1,A/AA,telefon;phone;1234 56789
+news-01,news,Heading not marked up as such,1.3.1,A/AA,heading;headline;heat wave
+news-02,news,Font difficult to read,1.4.8,AAA/advisory,serif;times new roman;font family;typeface
+news-03,news,Columns too close together,1.4.8,AAA/advisory,columns too close;column spacing;gutter;space between
+news-04,news,Reading sequence not meaningful,1.3.2,A/AA,reading sequence;reading order;your shout
+news-05,news,Link purpose unclear,2.4.4;2.4.9,A/AA,clara;smzappa;picture of
+news-06,news,Link not visually distinct,1.4.1;1.4.8,A/AA,air conditioning;not visually distinct;underline;link-in-text-block
+news-07,news,Emphasized text not marked up as such,1.3.1,A/AA,emphasi;italic;em element
+news-08,news,Text with deprecated markup,,AAA/advisory,deprecated;font element;return to sender
+news-09,news,Diagram representation unclear,1.1.1,A/AA,diagram;chart;chart1
+news-10,news,Image with incorrect text alternative,1.1.1,A/AA,blanca;wahoonie;alt text quality;more information than
+tickets-01,tickets,Image of text without text alternative used as a heading,1.1.1;1.3.1;1.4.1;1.4.5,A/AA,ticket offers;headline_ticket;image of text;heading
+tickets-02,tickets,Table column headings not marked up,1.3.1,A/AA,table header;column heading;th element;th>;td-has-header;th-has-data-cells;table headings
+tickets-03,tickets,Using CSS to convey semantic meaning,1.3.1,A/AA,special deals;bold;strong
+tickets-04,tickets,Image of text with incorrect text alternative,1.1.1;1.4.4;1.4.5,A/AA,telefon;phone number;music line;269
+tickets-05,tickets,Data table without semantic structure,1.3.1,A/AA,caption;data table;table header;header cells;td-headers
+tickets-06,tickets,Insufficient color contrast,1.4.3;1.4.6,A/AA,contrast;color-contrast;41545d;a9b8bf
+tickets-07,tickets,Acronyms used to indicate seat options are not explained,3.1.4,AAA/advisory,acronym;abbreviation;fs;seat option
+tickets-08,tickets,No semantic markup and text is hard to read,,AAA/advisory,justif;all-caps;all caps;capital;line spacing;terms;underlin
+survey-01,survey,Instructions necessary for form completion are missing,3.3.2,A/AA,instructions;required field
+survey-02,survey,Radio buttons not grouped within the code,3.3.2;1.3.1,A/AA,fieldset;legend;radio group;radiogroup;grouped
+survey-03,survey,Radio button is not associated with its label,3.3.2;1.3.1;4.1.2,A/AA,radio;label;none
+survey-04,survey,Select box is missing caption,3.3.2;1.3.1;4.1.2,A/AA,select;label;caption;select-name
+survey-05,survey,Select box not easily usable by keyboard,2.1.1;2.4.1,A/AA,long list;optgroup;country;keyboard
+survey-06,survey,Reading sequence not meaningful,1.3.2;2.4.3;3.3.2,A/AA,reading sequence;reading order;focus order;tab order;sequence
+survey-07,survey,Reading sequence not meaningful,1.3.1,A/AA,table structure;layout table;data cells;p element
+template-01,all,Page title and layout causes confusion,1.3.1;2.4.2,A/AA,page title;title element;welcome to citylights;document-title;nested table;layout table
+template-02,all,Image with incorrect text alternative,1.1.1,A/AA,logo;citylights;verbose;top_logo
+template-03,all,Automatic page redirect on change,2.4.1;3.2.2,A/AA,redirect;drop-down;dropdown;select menu;on change;onchange
+template-04,all,Script not compatible with some tools,,AAA/advisory,document.write;script
+template-05,all,No mechanisms to bypass repeated content,2.4.1,A/AA,skip link;skip-link;bypass;skip to;repeated content;region
+template-06,all,Headings not marked up as such,1.3.1,A/AA,heading;headline;heading markup
+template-07,all,Images without any text alternative,1.1.1,A/AA,navigation image;nav image;left navigation;menu image;image-alt;missing alt;no alt;link-name
+template-08,all,Page components not focusable,2.1.1;2.4.7;3.2.1,A/AA,focus;onfocus;blur;not focusable;focus lost;focuslost
+template-09,all,Link text not descriptive and not visually distinct,1.4.1;1.4.8;2.4.4;2.4.9,A/AA,read more;not visually distinct
+template-10,all,Insufficient color contrast,1.4.3;1.4.6,A/AA,contrast;color-contrast;41545d;a9b8bf

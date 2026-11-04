@@ -1,0 +1,69 @@
+{
+  "_comment": "CarePath sample, reconstructed to reproduce the original v1.4 sample audit's numbers. Used by evals/score.js --all; don't change the findings without updating expected-scores.json.",
+  "siteName": "CarePath (sample)",
+  "preparedBy": "Relevate Health",
+  "date": "July 8, 2026",
+  "pagesAudited": "Homepage, Appointment Booking, Password Reset, Insurance FAQ",
+  "dimensionsEvaluated": [
+    "Usability Heuristics",
+    "Accessibility",
+    "Content & Microcopy",
+    "Mobile/Responsive"
+  ],
+  "complianceBaseline": "WCAG 2.1 AA — HHS Section 504 (recipient, confirmed by client)",
+  "sampleNote": "This sample covers 4 of 8 dimensions.",
+  "overallNarrative": "CarePath is in good shape overall, but keyboard users can't see where they are and booking an appointment has avoidable friction. Fixing focus styles and the booking flow first protects patients and reduces abandoned bookings.",
+  "roadmapArc": "Protect the audience. Improve the experience. Earn their trust.",
+  "roadmapPhases": [
+    {
+      "name": "1. Foundation & Compliance",
+      "focus": "Restore focus styles, fix the confirm button, and fix the mobile header so every patient can navigate.",
+      "timeframe": "1-2 weeks"
+    },
+    {
+      "name": "2. Core Experience Improvements",
+      "focus": "Add Back and progress feedback to booking and clear error messages to password reset.",
+      "timeframe": "1-2 months"
+    },
+    {
+      "name": "3. Polish & Content Refinement",
+      "focus": "Rewrite the insurance FAQ in plain language and fix answer-text contrast.",
+      "timeframe": "3+ months"
+    }
+  ],
+  "keyTasks": [
+    {
+      "task": "Book an appointment",
+      "start": "Homepage",
+      "success": "Booking confirmation",
+      "result": "Completed with difficulty",
+      "findings": [
+        "UH-002",
+        "UH-003",
+        "ACC-002"
+      ],
+      "notes": "stopped before final confirm"
+    },
+    {
+      "task": "Reset a forgotten password",
+      "start": "Sign-in link",
+      "success": "Signed in with new password",
+      "result": "Completed with difficulty",
+      "findings": [
+        "UH-001"
+      ]
+    }
+  ],
+  "criteriaResults": [
+    {
+      "sc": "1.2.1",
+      "result": "N/A",
+      "note": "No audio or video on audited pages"
+    }
+  ],
+  "methodology": [
+    "Nielsen Norman Group's 10 Usability Heuristics",
+    "WCAG 2.2 Level AA (findings labeled where they also fail the WCAG 2.1 AA legal baseline)",
+    "Healthcare UX best practices (health literacy, trust signals, regulatory UX)"
+  ]
+}
