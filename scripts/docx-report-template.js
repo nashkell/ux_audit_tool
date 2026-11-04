@@ -60,11 +60,15 @@
 const fs = require("fs");
 const { WCAG22_AA, BY_SC, OBSOLETE, scSortKey, extractSCs } = require("./wcag22-criteria");
 const path = require("path");
+// docx is only needed to write the document. Load it softly so the parsing
+// and scoring functions (used by validate-findings.js and evals/score.js)
+// work without it.
+const docxLib = (() => { try { return require("docx"); } catch (e) { return null; } })();
 const {
   Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell,
   WidthType, ShadingType, AlignmentType, BorderStyle, PageBreak,
   Header, Footer, PageNumber, VerticalAlign
-} = require("docx");
+} = docxLib || {};
 
 const cliArgs = process.argv.slice(2);
 const STRICT = cliArgs.includes("--strict");
@@ -995,40 +999,64 @@ function build(data) {
   });
 }
 
-const findings = loadFindings(CSV_PATH);
+// ============================================================================
+// CLI entry point. When required as a module (validate-findings.js,
+// evals/score.js) nothing below runs; the parsing and scoring functions are
+// exported instead.
+// ============================================================================
 
-// Verification gate (see SKILL.md): Inferred findings may not appear in a
-// client deliverable until a human changes the value.
-const KNOWN_VERIFICATION = Object.values(VERIFICATION);
-// Per-row blanks are only reported when the column exists; a missing column
-// was already reported once by loadFindings.
-[["Evidence", "evidence"], ["Verification", "verification"]].forEach(([label, field]) => {
-  if (!EVIDENCE_COLUMNS_PRESENT[label]) return;
-  const blank = findings.filter(f => !f[field]).map(f => f.id);
-  if (blank.length) console.warn(`Warning: ${label} is empty for ${blank.join(", ")}.`);
-});
-const unknownVerification = findings.filter(f => f.verification && !KNOWN_VERIFICATION.includes(f.verification));
-if (unknownVerification.length) {
-  console.warn(`Warning: unrecognized Verification value on ${unknownVerification.map(f => `${f.id} ("${f.verification}")`).join(", ")}. Use ${KNOWN_VERIFICATION.join(" | ")}.`);
-}
-const inferred = findings.filter(f => f.verification === VERIFICATION.INFERRED).map(f => f.id);
-if (inferred.length) {
-  const msg = `${inferred.length} finding(s) marked "${VERIFICATION.INFERRED}": ${inferred.join(", ")}. These may not appear in a client deliverable until a human verifies them and changes the value.`;
-  if (STRICT) {
-    console.error(`Error (--strict): ${msg}`);
+function main() {
+  if (!docxLib) {
+    console.error('Error: the "docx" package isn\'t installed. Run `npm install` in scripts/ first.');
     process.exit(1);
   }
-  console.warn(`Warning: ${msg}`);
+  const findings = loadFindings(CSV_PATH);
+
+  // Verification gate (see SKILL.md): Inferred findings may not appear in a
+  // client deliverable until a human changes the value.
+  const KNOWN_VERIFICATION = Object.values(VERIFICATION);
+  // Per-row blanks are only reported when the column exists; a missing column
+  // was already reported once by loadFindings.
+  [["Evidence", "evidence"], ["Verification", "verification"]].forEach(([label, field]) => {
+    if (!EVIDENCE_COLUMNS_PRESENT[label]) return;
+    const blank = findings.filter(f => !f[field]).map(f => f.id);
+    if (blank.length) console.warn(`Warning: ${label} is empty for ${blank.join(", ")}.`);
+  });
+  const unknownVerification = findings.filter(f => f.verification && !KNOWN_VERIFICATION.includes(f.verification));
+  if (unknownVerification.length) {
+    console.warn(`Warning: unrecognized Verification value on ${unknownVerification.map(f => `${f.id} ("${f.verification}")`).join(", ")}. Use ${KNOWN_VERIFICATION.join(" | ")}.`);
+  }
+  const inferred = findings.filter(f => f.verification === VERIFICATION.INFERRED).map(f => f.id);
+  if (inferred.length) {
+    const msg = `${inferred.length} finding(s) marked "${VERIFICATION.INFERRED}": ${inferred.join(", ")}. These may not appear in a client deliverable until a human verifies them and changes the value.`;
+    if (STRICT) {
+      console.error(`Error (--strict): ${msg}`);
+      process.exit(1);
+    }
+    console.warn(`Warning: ${msg}`);
+  }
+
+  const meta = loadMeta(META_PATH);
+  if (!meta.complianceBaseline && findings.some(f => normKey(f.dimension) === "accessibility")) {
+    console.warn("Warning: audit-meta.json has no complianceBaseline. Confirm which standard applies to this client (see references/regulatory-context.md).");
+  }
+  const auditData = buildAuditData(findings, meta);
+
+  fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
+  Packer.toBuffer(build(auditData)).then(buf => {
+    fs.writeFileSync(OUTPUT_PATH, buf);
+    console.log(`Written to ${OUTPUT_PATH} (${findings.length} findings across ${auditData.dimensions.length} dimensions).`);
+  });
 }
 
-const meta = loadMeta(META_PATH);
-if (!meta.complianceBaseline && findings.some(f => normKey(f.dimension) === "accessibility")) {
-  console.warn("Warning: audit-meta.json has no complianceBaseline. Confirm which standard applies to this client (see references/regulatory-context.md).");
+if (require.main === module) {
+  main();
+} else {
+  module.exports = {
+    parseCSV, normKey, pick, hasColumn, loadFindings, loadMeta, buildAuditData,
+    computePriority, canonicalDimension, normVerification, normStandard, normResult, normTaskResult,
+    DIMENSION_ORDER, VERIFICATION, STANDARD, RESULT, TASK_RESULT, SEVERITY_SCOPE_TABLE, SEVERITY_WEIGHT,
+    STANDARD_KEYS, REFERENCE_KEYS, SC_KEYS, REACH_KEYS, IMPACT_KEYS, EASE_KEYS,
+    EVIDENCE_KEYS, VERIFICATION_KEYS, INSTANCES_KEYS
+  };
 }
-const auditData = buildAuditData(findings, meta);
-
-fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
-Packer.toBuffer(build(auditData)).then(buf => {
-  fs.writeFileSync(OUTPUT_PATH, buf);
-  console.log(`Written to ${OUTPUT_PATH} (${findings.length} findings across ${auditData.dimensions.length} dimensions).`);
-});

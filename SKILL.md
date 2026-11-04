@@ -1,11 +1,26 @@
 ---
 name: ux-audit
-description: Conduct comprehensive UX audits of websites. Use when the user provides a website URL and requests a UX audit, usability evaluation, accessibility review, or heuristic analysis. Evaluates sites against WCAG 2.2 AA accessibility standards (labeling the WCAG 2.1 AA legal baseline), Nielsen Norman Group's 10 usability heuristics, healthcare-specific UX considerations, information architecture, visual design, and user flow analysis. Works in Claude Code (via Puppeteer), Cowork (via Chrome), or chat (with provided screenshots). Outputs a structured audit report with prioritized findings and recommendations, optionally rendered as a branded Word (.docx) deliverable.
+description: Conducts evidence-based UX audits of websites. Use when the user provides a website URL and asks for a UX audit, usability evaluation, accessibility review, or heuristic analysis. Evaluates sites against WCAG 2.2 AA (labeling which failures fall in the WCAG 2.1 AA legal baseline), Nielsen Norman Group's 10 usability heuristics, visual design, information architecture, content, user flows, mobile, and healthcare-specific UX, and walks key user tasks live. Every finding records its evidence and how it was verified. Scores dimensions with a Severity × Scope deduction model and ranks fixes by priority. Works in Claude Code (via Puppeteer), Cowork (via Chrome), or chat (with screenshots). Outputs a validated findings CSV, a full report, an executive summary, and a branded Word (.docx) deliverable.
 ---
 
 # UX Audit Skill
 
 Systematic UX audits evaluating websites against usability and accessibility standards.
+
+Copy this checklist into your working notes at the start of every audit and tick items off as you go:
+
+```
+Audit progress:
+- [ ] 1. Scope: pages, key tasks, dimensions, compliance baseline (audit-meta.json)
+- [ ] 2. Capture: run capture-site.js or live review
+- [ ] 3. Evaluate each dimension against its reference file
+- [ ] 4. Walk through key tasks
+- [ ] 5. Consolidate duplicates (consolidation rule)
+- [ ] 6. Verify: resolve every "Inferred" finding
+- [ ] 7. Validate: run validate-findings.js until it passes
+- [ ] 8. Generate the report, summary, CSV, and Word doc
+- [ ] 9. Render to PDF and inspect
+```
 
 ## Known Limitations
 
@@ -186,7 +201,7 @@ See `references/healthcare-checklist.md`. UX observations only; no legal or regu
 For each issue found:
 
 ```
-ID: [DIM]-[###]
+ID: [PREFIX]-[###]
 Severity: [1-4]
 Scope: [Site-wide / Page-level / Element-level]
 Location: [Page/Element]
@@ -200,6 +215,19 @@ Verification: [Automated-confirmed | Observed live | Inferred — needs human ch
 Instances: [Count + list of pages, when the same issue appears in more than one place]
 At a Glance: [One-sentence client-facing takeaway]
 ```
+
+**ID prefixes** (the validator checks the prefix matches the dimension):
+
+| Dimension | Prefix |
+|-----------|--------|
+| Usability Heuristics | `UH` |
+| Accessibility | `ACC` |
+| Visual Design | `VIS` |
+| Information Architecture | `IA` |
+| Content & Microcopy | `CON` |
+| User Flows | `UF` (or `FLOW`) |
+| Mobile/Responsive | `MOB` |
+| Healthcare-Specific | `HC` |
 
 **Standard** says which bar the finding fails. `WCAG 2.1 AA` = a WCAG 2.0/2.1 A or AA criterion (the legal baseline). `WCAG 2.2 AA (new)` = only one of the six criteria new in 2.2. `Best practice` = no A/AA criterion failed, but users are still affected. Required on accessibility findings; leave blank elsewhere unless a finding cites WCAG. If it's blank, the Word builder fills it from the criterion number in Reference. Rules and the target-size table are in `references/accessibility-checklist.md`.
 
@@ -281,7 +309,7 @@ minimum = 0
 | Minor | -2 | -1.5 | -1 |
 | Cosmetic | -1 | -0.5 | -0.5 |
 
-Example: three Critical, Element-level findings and one Critical, Site-wide finding are not scored the same (3 × -3 = -9 vs. -8) even though all four are "Critical" — which is the intended effect. This replaces the old flat `critical×10 / major×6 / minor×3 / cosmetic×1` formula.
+Example: three Critical, Element-level findings and one Critical, Site-wide finding are not scored the same (3 × -3 = -9 vs. -8) even though all four are "Critical" — which is the intended effect.
 
 ### Priority Score (8-37)
 
@@ -331,6 +359,26 @@ Phase 3: Strategic Expansion      — Earn their trust.
 
 This is a pattern to adapt, not a template to reuse verbatim — the specific names and arc should reflect what's actually in each phase for the site being audited. Keep timeframes (1-2 weeks, 1-2 months, etc.) as a secondary detail, not the phase title.
 
+## Validate
+
+Before generating any deliverable, run the validator. **Run it, fix what it reports, and repeat; only generate deliverables once it passes.**
+
+```bash
+node scripts/validate-findings.js findings.csv audit-meta.json
+```
+
+It exits non-zero on any error, and each error names the finding and the fix (e.g. `UH-003: Scope "Sitewide" not allowed; write it as "Site-wide"`). It checks:
+- **Values and fields:** Severity, Scope, Dimension, Standard, and Verification use allowed values, and no required field is empty.
+- **IDs:** unique, and the prefix matches the dimension (table above).
+- **At a Glance:** one sentence, and not a restatement of the Observation.
+- **Placeholders:** none left (`[...]` template text, "lorem", "TBD").
+- **Verification:** no `Inferred — needs human check` findings remain.
+- **Priority:** inputs are whole numbers 1–5, and the Priority Score matches them.
+- **WCAG:** accessibility findings cite a valid criterion, and their Standard matches it.
+- **Metadata:** narrative and roadmap phases filled in, `dimensionsEvaluated` covers every finding, `complianceBaseline` set when accessibility is in scope, and `keyTasks` and `criteriaResults` are consistent with the findings.
+
+Warnings (a Site-wide finding with no Instances list, possible duplicates the consolidation rule should merge, a baseline still "Not confirmed") don't fail the run, but read them.
+
 ## Report Generation
 
 Use templates in `assets/`:
@@ -350,7 +398,7 @@ Copy deliverables to output directory for user access.
 For client-facing delivery, `scripts/docx-report-template.js` builds a branded Word document directly from `findings.csv` plus a small metadata file — no manual data re-entry. This requires the `docx` skill's environment (npm `docx` package) — read `/mnt/skills/public/docx/SKILL.md` first for setup and the common gotchas, and always render the result to PDF and visually check it before delivering, per that skill's verification step.
 
 Workflow:
-1. Have `findings.csv` ready (as already produced by this skill's Finding Documentation format).
+1. Have `findings.csv` ready (as already produced by this skill's Finding Documentation format), and run `scripts/validate-findings.js` until it passes (see Validate).
 2. Copy `assets/audit-meta.example.json` to `audit-meta.json` and fill in the handful of things a CSV can't hold: site name, prepared-by, date, pages audited, **`dimensionsEvaluated`**, **`keyTasks`**, `complianceBaseline`, the executive summary narrative, and the roadmap phases/arc.
 3. Run:
    ```bash
@@ -367,7 +415,7 @@ CSV column names are matched case- and punctuation-insensitively (`At a Glance`,
 - If the auditor marks Pass but a finding fails the criterion, the report shows Fail and warns. A Fail with no finding behind it also warns.
 - Set `complianceBaseline` in `audit-meta.json` (see `references/regulatory-context.md`); the build warns if it's missing.
 
-The `Evidence`, `Verification`, and `Instances` columns are shown in small, muted text under each finding's Reference. A CSV without them (pre-v1.5) still builds, with a warning. Any finding with Verification = Inferred triggers a warning listing its ID; add `--strict` to make the build exit non-zero instead — use it for the final client build:
+The `Evidence`, `Verification`, and `Instances` columns are shown in small, muted text under each finding's Reference. A CSV without them (older format) still builds, with a warning. Any finding with Verification = Inferred triggers a warning listing its ID; add `--strict` to make the build exit non-zero instead — use it for the final client build:
 ```bash
 node scripts/docx-report-template.js findings.csv audit-meta.json output.docx --strict
 ```
@@ -376,4 +424,4 @@ The script's brand palette (navy/purple/lime/teal, Inter typeface) is approximat
 
 ---
 
-*Skill Version: 1.5.4 — see `CHANGELOG.md` for version history.*
+*Skill Version: 1.5.5 — see `CHANGELOG.md` for version history.*

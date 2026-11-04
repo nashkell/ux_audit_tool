@@ -1,0 +1,6 @@
+{
+  "_comment": "Floors for node evals/score.js --all. A run scoring below its floor (or with a higher duplicate rate) fails the evals. Raise a floor when a release improves on it; record the numbers in CHANGELOG.md.",
+  "runs": {
+    "run-automated.csv": { "recall": 0.204, "precision": 1.0, "duplicateRate": 0.0 }
+  }
+}

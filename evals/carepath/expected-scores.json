@@ -1,0 +1,17 @@
+{
+  "_comment": "Numbers from the original v1.4 CarePath sample. These must not change unless the scoring rules change on purpose.",
+  "overall": "87.5%",
+  "dimensions": {
+    "Usability Heuristics": "43 / 50",
+    "Accessibility": "38.5 / 50",
+    "Content & Microcopy": "48.5 / 50",
+    "Mobile/Responsive": "45 / 50"
+  },
+  "top5": [
+    "ACC-001",
+    "UH-003",
+    "MOB-001",
+    "UH-001",
+    "ACC-002"
+  ]
+}

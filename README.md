@@ -20,13 +20,22 @@ The skill runs a linear pipeline from URL to deliverables:
 Website URL
     |
     v
+Audit setup -- pages, key tasks, dimensions, compliance baseline
+    |
+    v
 Choose environment -- Code, Cowork, or Chat
     |
     v
-Live browser review -- 8 dimensions, all pages
+Live browser review -- 8 dimensions, all pages, key tasks walked live
     |
     v
-Document findings -- Severity + Scope + At a Glance
+Document findings -- Severity + Scope + Evidence + Verification + At a Glance
+    |
+    v
+Consolidate & verify -- merge duplicates, resolve every Inferred finding
+    |
+    v
+Validate -- validate-findings.js until it passes
     |
     v
 Score & prioritize -- Severity x Scope, auto-computed
@@ -38,6 +47,8 @@ Generate deliverables -- report, summary, CSV, Word doc
     +-- findings.csv
     +-- Word doc (optional, generated from findings.csv)
 ```
+
+SKILL.md opens with a copyable 9-step progress checklist that follows these stages.
 
 The environment choice only changes *how* pages get reviewed — all three feed the same downstream finding format, scoring model, and report templates. The sections below walk through each stage in the detail that matters if you're running or modifying the skill.
 
@@ -206,7 +217,22 @@ Dimensions render in a canonical order matching the 8 dimensions above, regardle
 
 **Rendering and verification.** The assembled data is handed to render functions using the `docx` npm library, styled to the Relevate Health palette (navy/purple/lime/teal, Inter). The workflow always ends with converting the output to PDF and visually checking it — required by the underlying `docx` skill's standard practice, and how the automated version was confirmed to reproduce the same numbers as the original hand-built doc (87.5% overall, matching dimension scores, matching Top 5 order) before this was committed.
 
-**Known gap.** The script doesn't validate that `audit-meta.json` is filled in — a missing narrative or roadmap phase falls back to bracketed placeholder text (`[Add a 1-2 sentence summary...]`) so the doc still builds instead of erroring. Worth a final read-through before delivery.
+**The builder is lenient; the validator is strict.** For back-compat the Word builder fills gaps with placeholder text and builds anyway. So before any deliverable, run the validator (v1.5.5):
+
+```bash
+node scripts/validate-findings.js findings.csv audit-meta.json
+```
+
+It exits non-zero with a specific message per problem (`UH-003: Scope "Sitewide" not allowed; write it as "Site-wide"`). It checks:
+- allowed values (Severity, Scope, Dimension, Standard, Verification) and empty required fields;
+- unique IDs whose prefix matches the dimension;
+- At a Glance is one sentence and not a copy of the Observation;
+- no leftover placeholders (`[...]`, "lorem", "TBD") and no Inferred findings;
+- priority inputs in range and consistent with the Priority Score;
+- WCAG criteria valid and consistent with Standard;
+- the metadata: narrative and roadmap filled in, `dimensionsEvaluated` covering every finding, `complianceBaseline` present when accessibility is in scope, and `keyTasks` / `criteriaResults` consistent with the findings.
+
+Run it, fix, repeat; generate deliverables only once it passes. The shipped example deliberately fails on one error, its Inferred finding HC-003.
 
 ---
 
@@ -235,12 +261,38 @@ scripts/
   capture-site.js                   Puppeteer capture + analysis script (Claude Code)
   wcag22-criteria.js                WCAG 2.2 A/AA criteria list used by the Word builder's conformance table
   docx-report-template.js           Branded Word (.docx) builder -- reads findings.csv + audit-meta.json directly
+  validate-findings.js              QA gate: checks findings.csv + audit-meta.json before deliverables; exits 1 on errors
+evals/
+  README.md                         How to run the evals, read the metrics, and add a site
+  score.js                          Recall / precision / duplicate rate against an answer key; CarePath score check; --all
+  automated-baseline.js             capture-site.js output -> automation-only findings CSV
+  carepath/                         CarePath sample + expected scores
+  bad-before/                       W3C BAD answer key, also-valid list, pages, runs, baseline floors
 CHANGELOG.md                        Version history
 ```
 
+## Evals
+
+`evals/` measures the skill's accuracy. **Run the evals before releasing any version and record the results in the CHANGELOG:**
+
+```bash
+node evals/score.js --all
+```
+
+- **CarePath** (`evals/carepath/`): scoring must still reproduce 87.5% / 43 / 38.5 / 48.5 / 45 and the same Top 5, and the validator must pass the sample.
+- **W3C BAD "before"** (`evals/bad-before/`): an answer key of 44 issues from the W3C Before and After Demonstration annotations. `score.js` reports **recall** (expected issues found), **precision** (reported findings that are real; a lower bound, since the key isn't exhaustive), and **duplicate rate**. Runs that drop below the floors in `baseline.json` fail.
+
+The checked-in run is an automation-only baseline (axe-core plus the capture's keyboard checks, no human judgment). A full skill run should be scored in a fresh session that hasn't seen the answer key; see `evals/README.md`, which also explains how to add a real client page later.
+
 ## Installing
 
-Package the skill directory into a `.skill` file for upload to Claude.ai / Cowork settings, or point Claude Code at this repo directly. See your team's AI Center of Excellence for the current packaging workflow.
+Package the skill for upload to Claude.ai / Cowork (Settings → Capabilities → Skills) with:
+
+```bash
+./package-skill.sh            # writes dist/ux-audit.zip
+```
+
+The zip contains `SKILL.md`, `references/`, `assets/`, and `scripts/` (without `node_modules`; run `npm install` in `scripts/` after installing in Claude Code). Evals, the README, and the CHANGELOG stay in the repo. Or point Claude Code at this repo directly.
 
 ## Contributing
 
