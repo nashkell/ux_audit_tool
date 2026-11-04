@@ -15,22 +15,25 @@
   "sampleNote": null,
   "_sampleNote_comment": "Set to a string like 'This sample covers N of 8 dimensions...' for demo/partial audits, or null to omit for a full audit.",
 
-  "overallNarrative": "One to two plain-language sentences on where the site stands and what matters most — written for someone who only reads the executive summary.",
+  "overallNarrative": "The site covers the basics, but booking an appointment, the most important task on it, is harder than it should be: new patients must create an account before seeing open times, form errors wipe their entries, and keyboard and screen reader users can't finish at all. Accessibility is the weakest area and should be fixed first; several of those fixes also make booking easier for everyone.",
+  "_overallNarrative_comment": "One to two plain-language sentences on where the site stands and what matters most — written for someone who only reads the executive summary.",
 
   "roadmapArc": "Protect the audience. Improve the experience. Earn their trust.",
   "_roadmapArc_comment": "Optional narrative tying the phases together. Set to null to omit. Adapt to what's actually in each phase — see Roadmap Phase Naming in SKILL.md.",
 
   "roadmapPhases": [
-    { "name": "1. Foundation & Compliance", "focus": "One sentence: what this phase delivers and why it's first.", "timeframe": "1-2 weeks" },
-    { "name": "2. Core Experience Improvements", "focus": "One sentence.", "timeframe": "1-2 months" },
-    { "name": "3. Polish & Content Refinement", "focus": "One sentence.", "timeframe": "3+ months" }
+    { "name": "1. Foundation & Compliance", "focus": "Fix the accessibility failures that block keyboard and screen reader users (focus, contrast, the booking button, form errors, the reset CAPTCHA) and add emergency guidance.", "timeframe": "2-4 weeks" },
+    { "name": "2. Core Experience Improvements", "focus": "Rework appointment booking: availability before sign-up, a step indicator, preserved form entries, and a mobile-friendly date picker; surface bill pay and the patient portal.", "timeframe": "1-3 months" },
+    { "name": "3. Polish & Content Refinement", "focus": "Rewrite the insurance FAQ in plain language and group it, standardize terminology and button styles, and tidy remaining copy.", "timeframe": "3+ months" }
   ],
 
   "criteriaResults": [
     { "sc": "1.2.1", "result": "N/A", "note": "No audio or video on audited pages" },
-    { "sc": "2.1.1", "result": "Pass", "note": "All audited pages operable by keyboard" },
+    { "sc": "2.4.2", "result": "Pass", "note": "Every audited page has a unique, descriptive title" },
     { "sc": "2.5.8", "result": "Pass", "note": "No targets under 24x24 px found" },
-    { "sc": "3.3.8", "result": "Needs manual check", "note": "Login CAPTCHA not yet tested with a password manager" }
+    { "sc": "3.1.1", "result": "Pass", "note": "html lang=\"en\" set on all pages" },
+    { "sc": "2.4.11", "result": "Needs manual check", "note": "Sticky header may cover focused elements once focus styles are restored (ACC-001); re-test after the fix" },
+    { "sc": "3.3.7", "result": "Needs manual check", "note": "Booking step 3 may re-ask for details entered at registration; needs a signed-in test account" }
   ],
   "_criteriaResults_comment": "WCAG 2.2 A/AA criteria YOU assessed. Fail rows are filled in automatically from findings — list only Pass, N/A, and Needs manual check here (or a Fail with a note if no finding covers it). Anything not listed shows as Not tested. Never mark Pass for a criterion you didn't check. Omit the field entirely to skip it; Appendix D still appears if any finding cites a WCAG criterion.",
 

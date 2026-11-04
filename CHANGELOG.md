@@ -27,6 +27,7 @@ Phase 4 of the v1.5 plan: scoring correctness. Scores mean the same thing regard
 ### Changed
 - SKILL.md Scoring: the Priority Score section documents the stored inputs, fallback and range (8–37; it said 1–40, which the formula can't produce). The Overall Health formula now counts evaluated dimensions. The Word workflow mentions `dimensionsEvaluated` and the inputs.
 - `assets/audit-meta.example.json` gains `dimensionsEvaluated` (all 8, with a comment). `assets/findings.example.csv` gains the three input columns.
+- **The example is now a realistic full audit.** With all 8 dimensions evaluated, the old 2-finding example scored 97.5% ("Excellent"), which misrepresented a typical result. `assets/findings.example.csv` now has 22 findings across all 8 dimensions of a fictional healthcare site (3 Critical, 12 Major, 6 Minor, 1 Cosmetic), and the example metadata has a matching narrative, roadmap, and `criteriaResults`.
 - The report and executive-summary templates list Healthcare-Specific, explain Not evaluated / 50/50, and label the total as an evaluated-dimensions %.
 - README scoring and Word-pipeline sections updated.
 
@@ -45,7 +46,7 @@ Phase 4 of the v1.5 plan: scoring correctness. Scores mean the same thing regard
   - CON-001: 2×3+1×2+2×2+3 = 15
   - All 8 rows reproduce the original Priority Score column, so the Top 5 order is unchanged (ACC-001, UH-003, MOB-001, UH-001, ACC-002).
 - Planted disagreement (column 30 vs computed 22) is warned and 22 used. Planted EaseOfFix = 7 is warned and falls back to the column.
-- Example files: 97.5% across 8 evaluated dimensions, no warnings. `--strict` still exits 1 on an Inferred finding.
+- Example files: 82.5% (Good) across 8 evaluated dimensions, with Accessibility at 26.5 / 50 (Poor). Top 5: ACC-001, FLOW-001, ACC-003, IA-001, UH-003. Appendix D: 8 Fail, 3 Pass, 2 Needs manual check, 1 N/A. No warnings. `--strict` still exits 1 on an Inferred finding.
 - Rendered and inspected (Quick Look): At a Glance table with Not evaluated rows; Appendix B priority column and breadth note.
 
 ## [1.5.2] - 2026-11-03
