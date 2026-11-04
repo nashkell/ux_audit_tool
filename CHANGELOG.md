@@ -2,6 +2,48 @@
 
 All notable changes to this skill are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.5.1] - 2026-11-03
+
+Phase 2 of the v1.5 plan: fix `capture-site.js`. Capture is now reliable. Screenshots still default to off (decision D3), and deliverable screenshots stay manual.
+
+### Fixed
+- **Removed Puppeteer APIs.** `page.waitForTimeout()` (removed in v22) is replaced by `waitForNetworkIdle()` plus a `waitForFunction` on `document.fonts.ready`. `headless: 'new'` is dropped; the default is used.
+- **Real mobile capture.** Mobile is a separate load using `puppeteer.KnownDevices` (`--mobile-device`, default "iPhone 13") through `page.emulate()`, followed by a reload. Before, the desktop page was just resized to 375px after loading, so the mobile layout usually never appeared.
+- **Label check.** `hasLabel` counts `label[for]` (with text), a wrapping `<label>`, `aria-labelledby` (targets must exist and have text), `aria-label`, and `title` as a last resort. Button-type inputs are named by `value`. Each field records `labelSource`.
+- **Focus check.** The old `hasVisibleFocus` used `getComputedStyle(el, ':focus')`, which can't read focus styles, so it was meaningless and is removed. The new `keyboardFocus` test presses Tab N times (`--tab-count`, default 25) and compares each element's focused and unfocused outline, box-shadow, border, background and color. It also records `focusLost`: Tab stops that drop focus back to the page (e.g. `onfocus="blur()"`), naming the element. Passing through `<body>` at the end of the page isn't counted.
+- **axe-core is injected from the local npm package** instead of a CDN, via `page.evaluate`, which a page's Content-Security-Policy can't block. It runs with `wcag2a, wcag2aa, wcag21a, wcag21aa, wcag22aa, best-practice`. Each violation keeps up to 10 node selectors with an HTML snippet. `incomplete` results are kept with their selectors as a manual-review list.
+- **Error handling.** Every step on a page is wrapped. A failing step is recorded as `{step, error}` in `analysis.json`, the remaining steps still run, and `capture-summary.json` and the console list every failed step.
+- `--skip-a11y` was parsed but ignored. It now skips axe.
+
+### Added
+- `scripts/package.json` (+ lockfile) pinning `puppeteer` 25.14.0, `axe-core` 4.14.0 and `docx` 9.10.0. Set up with `cd scripts && npm install`.
+- Screenshot reliability for `--with-screenshots`: the page is scrolled in steps to trigger lazy-loaded content, with a wait for images before the full-page capture. `--dismiss "<sel>,<sel>"` clicks consent/cookie banners. Each image's viewport, user agent and timestamp are recorded in `analysis.json`.
+- Images: `imagesMissingAlt` (no alt attribute) is reported separately from `imagesEmptyAlt` (`alt=""`, valid for decorative images), both with selectors.
+- Mobile checks: viewport meta and horizontal overflow from the device load.
+- `.gitignore` (`node_modules/`, `.DS_Store`, `audit-output/`).
+
+### Changed
+- SKILL.md Known Limitations and README Known Limitation are rewritten. The capture bugs are fixed and `--with-screenshots` is reliable for reference, but deliverable screenshots are still captured and annotated by the auditor. Removed the wording that blamed screenshot problems on unknown causes. Added a note that alt-text quality, axe `incomplete` items and focus-order sense need human review.
+- SKILL.md Environment Setup uses the pinned install and adds a "Reading `analysis.json`" guide. The README Claude Code environment section and repo structure are updated. "Fix and re-enable automated screenshot capture" is removed from the README Roadmap.
+
+### Verified
+- **W3C BAD "before"** (Home, News, Tickets, Survey), freshly installed pinned Puppeteer, `--with-screenshots`: 0 failed steps.
+  - Unlabelled fields per page: 1 / 1 / 1 / 13, the same as axe `label` + `select-name` node counts. They include BAD Survey annotations 03 (radio `res` not associated with its label) and 04 (select `cc` missing caption).
+  - Missing-alt images per page: 33 / 39 / 26 / 24, the same as axe `image-alt`. They include BAD Tickets annotation 01 (`headline_ticket_offers.gif`).
+  - BAD Home annotation 07 (linked image with empty alt) is caught by axe `link-name`.
+  - BAD annotations about *incorrect or inadequate* alt text can't be detected automatically. They're expected manual-review items.
+  - The focus test flags the nav links with `onfocus="blur();"` as `focusLost` on all four pages.
+- **Local fixture page** with known traps:
+  - `outline:none` link and button: flagged as having no focus indicator.
+  - box-shadow focus ring: detected as an indicator.
+  - self-blurring link: named in `focusLost`.
+  - end-of-page wrap: not counted as a loss.
+  - dangling `aria-labelledby`, placeholder-only field, empty `<label>`: all reported unlabelled; the five valid label methods are recognized.
+- **Real client page** (pivotpump.com, `--with-screenshots --dismiss '[data-consent="declined"]'`): 0 failed steps. The mobile image (390×844 @3x, iPhone UA) shows the actual mobile layout with the hamburger nav; the desktop image shows the full nav. The consent banner was dismissed. axe violations are saved with selectors (9 rules), plus 2 incomplete rules.
+- **Run without `--with-screenshots`**: only `analysis.json` written, no images.
+- **Unreachable page in a multi-page run**: `desktop:load` and `mobile:load` are recorded as failed steps, the next page still captured, and the summary lists both failures.
+- **Phase 1 regression**: the Word builder on the pinned docx 9.10.0 still reproduces the v1.4 CarePath numbers (text identical to the baseline).
+
 ## [1.5.0] - 2026-11-03
 
 Phase 1 of the v1.5 plan: evidence, verification, and consolidation. Every finding now shows what it's based on and how it was confirmed, and repeated issues are consolidated.

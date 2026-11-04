@@ -13,7 +13,7 @@
  * output before delivering it (see that skill's "Verify the output").
  *
  * USAGE
- *   npm install docx   (if not already installed)
+ *   cd scripts && npm install   (installs the pinned docx version from package.json)
  *   node docx-report-template.js [findings.csv] [audit-meta.json] [output.docx] [--strict]
  *
  *   --strict   Exit non-zero (and write nothing) if any finding has
